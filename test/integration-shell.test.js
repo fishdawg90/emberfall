@@ -24,7 +24,7 @@ test('hosted shell retains mobile navigation, camera direction, assets, roads, a
 test('migrated gameplay dock is loaded without replacing the Three.js runtime', () => {
   assert.match(html, /class="gameDock"/);
   assert.match(html, /id="gamePanel"/);
-  assert.match(html, /game\.js\?v=9/);
+  assert.match(html, /game\.js\?v=10/);
   assert.match(game, /createGameUI/);
   assert.match(game, /new THREE\.WebGLRenderer/);
   assert.match(game, /saveGameState/);
@@ -141,6 +141,20 @@ test('work and forge panels expose mobile-budget first-person Three.js scenes', 
   assert.match(ui, /activityVisuals\.show/);
   assert.match(ui, /activityVisuals\.pulse/);
   assert.match(ui, /activityVisuals\.destroy/);
+});
+
+test('production rewards fly as earned ore and bars into persistent inventory stacks', async () => {
+  const ui = await readFile(new URL('game-ui.js', root), 'utf8');
+  assert.match(html, /id="activityGain"/);
+  assert.match(html, /@keyframes activityReward/);
+  assert.match(activityVisuals, /function reward\(/);
+  assert.match(activityVisuals, /new THREE\.InstancedMesh/);
+  assert.match(activityVisuals, /const instances = Math\.min\(total, 96\)/);
+  assert.match(activityVisuals, /function renderStack/);
+  assert.match(activityVisuals, /mode === 'mining' \? 'ore' : 'bar'/);
+  assert.match(ui, /function showWorkReward/);
+  assert.match(ui, /activityVisuals\.reward/);
+  assert.match(ui, /\.\.\.activityStack\(state, 'forging', result\.metal\)/);
 });
 
 test('quick intro and persistent journey objective connect the full gameplay loop', async () => {

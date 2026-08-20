@@ -8,15 +8,15 @@ const LABELS = Object.freeze({
   forging: ['THE SMITHY', 'Shape equipped gear at the anvil']
 });
 
-export function createActivityVisuals({ canvas, container, caption, getState, debug = window.EmberDebug }) {
+export function createActivityVisuals({ canvas, container, caption, gain, getState, debug = window.EmberDebug }) {
   const THREE = window.THREE;
-  if (!THREE || !canvas || !container) return { show() {}, hide() {}, update() {}, pulse() {}, destroy() {} };
+  if (!THREE || !canvas || !container) return { show() {}, hide() {}, update() {}, pulse() {}, reward() {}, destroy() {} };
   let renderer;
   try {
     renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, powerPreference: 'low-power' });
   } catch (error) {
     debug?.log('VISUAL', 'activity renderer unavailable', error?.message || error);
-    return { show() {}, hide() {}, update() {}, pulse() {}, destroy() {} };
+    return { show() {}, hide() {}, update() {}, pulse() {}, reward() {}, destroy() {} };
   }
 
   const mobile = matchMedia('(pointer:coarse)').matches || innerWidth < 720;
@@ -41,7 +41,9 @@ export function createActivityVisuals({ canvas, container, caption, getState, de
 
   const environment = new THREE.Group();
   const tool = new THREE.Group();
-  scene.add(environment, tool);
+  const stack = new THREE.Group();
+  const effects = new THREE.Group();
+  scene.add(environment, stack, effects, tool);
   const standard = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.86, ...extra });
   const metal = (color = 0x747b7c, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.44, metalness: 0.72, ...extra });
   const emissive = (color, intensity = 2.5) => new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: intensity, roughness: 0.55 });
@@ -98,6 +100,10 @@ export function createActivityVisuals({ canvas, container, caption, getState, de
   let lastHeight = 0;
   let accentMaterial = null;
   let animated = {};
+  let desiredStack = { count: null, label: '', color: '#d59662' };
+  let renderedStackKey = '';
+  let rewardFlights = [];
+  const rewardDummy = new THREE.Object3D();
 
   function disposeGroup(group) {
     for (const child of [...group.children]) {
@@ -108,6 +114,161 @@ export function createActivityVisuals({ canvas, container, caption, getState, de
       });
       group.remove(child);
     }
+  }
+
+  function stackTarget(kind = mode === 'mining' ? 'ore' : 'bar') {
+    if (kind === 'gear') return new THREE.Vector3(0, 1.72, -2.25);
+    if (mode === 'mining') return new THREE.Vector3(-2, 0.93, -2);
+    if (mode === 'smelting') return new THREE.Vector3(-2.45, 1.42, -3);
+    return new THREE.Vector3(-1.58, 0.22, -2.58);
+  }
+
+  function rewardOrigin(kind) {
+    if (kind === 'ore') return new THREE.Vector3(0, 1.45, -4.55);
+    if (kind === 'bar') return new THREE.Vector3(0, 1.35, -2.85);
+    return new THREE.Vector3(0, 1.38, -2.5);
+  }
+
+  function resourceGeometry(kind) {
+    if (kind === 'ore') return new THREE.DodecahedronGeometry(0.14, 0);
+    if (kind === 'gear') return new THREE.BoxGeometry(0.12, 1.05, 0.07);
+    return new THREE.BoxGeometry(0.58, 0.13, 0.2);
+  }
+
+  function stackMaterial(kind, color) {
+    const material = kind === 'ore' ? standard(color) : metal(color);
+    material.emissive = new THREE.Color(color).multiplyScalar(kind === 'ore' ? 0.13 : 0.08);
+    return material;
+  }
+
+  function updateCaption() {
+    const [title, description] = LABELS[mode] || LABELS.mining;
+    const count = desiredStack.count;
+    const inventory = Number.isFinite(count) && desiredStack.label
+      ? `${Number(count).toLocaleString()} ${desiredStack.label} ${mode === 'forging' ? 'ready' : 'stacked'}`
+      : description;
+    if (caption) caption.innerHTML = `<strong>${title}</strong><span>${inventory}</span>`;
+  }
+
+  function renderStack(force = false) {
+    if (!Number.isFinite(desiredStack.count) || mode === 'combat') {
+      disposeGroup(stack);
+      renderedStackKey = '';
+      updateCaption();
+      return;
+    }
+    const key = `${mode}|${desiredStack.count}|${desiredStack.color}`;
+    if (!force && key === renderedStackKey) return updateCaption();
+    disposeGroup(stack);
+    renderedStackKey = key;
+    const kind = mode === 'mining' ? 'ore' : 'bar';
+    const shown = Math.min(Math.max(0, Math.floor(desiredStack.count)), kind === 'ore' ? 24 : 18);
+    const material = stackMaterial(kind, desiredStack.color);
+    const target = stackTarget(kind);
+    for (let index = 0; index < shown; index += 1) {
+      let mesh;
+      if (kind === 'ore') {
+        mesh = new THREE.Mesh(resourceGeometry(kind), material.clone());
+        const row = Math.floor(index / 6);
+        mesh.position.set(target.x - 0.5 + index % 6 * 0.2 + row % 2 * 0.07, target.y + row * 0.16, target.z - 0.37 + index % 3 * 0.24);
+        mesh.rotation.set(index * 0.47, index * 0.81, index * 0.29);
+        mesh.scale.setScalar(0.8 + index % 3 * 0.12);
+      } else {
+        mesh = new THREE.Mesh(resourceGeometry(kind), material.clone());
+        const layer = Math.floor(index / 4);
+        mesh.position.set(target.x + (index % 4 - 1.5) * 0.33, target.y + layer * 0.14, target.z + (layer % 2 ? 0.08 : -0.04));
+        mesh.rotation.y = layer % 2 ? -0.08 : 0.08;
+      }
+      stack.add(mesh);
+    }
+    material.dispose();
+    updateCaption();
+  }
+
+  function setStack(options = {}) {
+    if (options.stackCount === null) desiredStack.count = null;
+    else if (Number.isFinite(options.stackCount)) desiredStack.count = Math.max(0, Math.floor(options.stackCount));
+    if (typeof options.stackLabel === 'string') desiredStack.label = options.stackLabel;
+    if (options.metalColor) desiredStack.color = options.metalColor;
+    if (!rewardFlights.length) renderStack();
+    else updateCaption();
+  }
+
+  function showGain(amount, label, kind) {
+    if (!gain) return;
+    gain.textContent = kind === 'gear' ? label : `+${amount} ${label}`;
+    gain.dataset.kind = kind;
+    gain.classList.remove('show');
+    void gain.offsetWidth;
+    gain.classList.add('show');
+  }
+
+  function reward({ kind = mode === 'mining' ? 'ore' : 'bar', amount = 1, label = '', metalColor, stackCount, stackLabel } = {}) {
+    pulse(760);
+    const total = Math.max(0, Math.floor(Number(amount) || 0));
+    if (!visible || total < 1 || !['ore', 'bar', 'gear'].includes(kind)) {
+      setStack({ stackCount, stackLabel, metalColor });
+      return;
+    }
+    showGain(total, label || stackLabel || kind, kind);
+    // Current progression tops out below 96 pieces; every earned item receives
+    // its own animated instance while remaining one draw call on mobile.
+    const instances = Math.min(total, 96);
+    const geometry = resourceGeometry(kind);
+    const material = stackMaterial(kind, metalColor || desiredStack.color);
+    if (kind === 'gear') {
+      material.emissiveIntensity = 0.38;
+      material.emissive.set(metalColor || desiredStack.color);
+    }
+    const mesh = new THREE.InstancedMesh(geometry, material, instances);
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    mesh.frustumCulled = false;
+    effects.add(mesh);
+    rewardFlights.push({
+      mesh,
+      kind,
+      count: instances,
+      startedAt: performance.now(),
+      duration: kind === 'gear' ? 930 : 720 + Math.min(360, instances * 14),
+      start: rewardOrigin(kind),
+      end: stackTarget(kind)
+    });
+    // Hold the previous pile while pieces are in flight, then rebuild from the
+    // authoritative inventory total after the final piece lands.
+    setStack({ stackCount, stackLabel, metalColor });
+    animateRewards(performance.now());
+  }
+
+  function animateRewards(time) {
+    if (!rewardFlights.length) return;
+    const active = [];
+    for (const flight of rewardFlights) {
+      let finished = true;
+      for (let index = 0; index < flight.count; index += 1) {
+        const delay = index * Math.min(36, 300 / Math.max(1, flight.count - 1));
+        const phase = Math.max(0, Math.min(1, (time - flight.startedAt - delay) / flight.duration));
+        if (phase < 1) finished = false;
+        const ease = 1 - (1 - phase) ** 3;
+        const spread = (index % 7 - 3) * 0.035;
+        rewardDummy.position.lerpVectors(flight.start, flight.end, ease);
+        rewardDummy.position.x += spread * Math.sin(phase * Math.PI);
+        rewardDummy.position.y += Math.sin(phase * Math.PI) * (flight.kind === 'gear' ? 1.15 : 0.75 + index % 3 * 0.08);
+        rewardDummy.position.z += (index % 5 - 2) * 0.025 * Math.sin(phase * Math.PI);
+        rewardDummy.rotation.set(phase * (4 + index % 3), phase * (5.5 + index % 5), flight.kind === 'gear' ? -0.5 + phase * 1.2 : phase * 3.2);
+        const scale = phase <= 0 ? 0.001 : flight.kind === 'gear' ? 1 : 0.85 + index % 3 * 0.09;
+        rewardDummy.scale.setScalar(scale);
+        rewardDummy.updateMatrix();
+        flight.mesh.setMatrixAt(index, rewardDummy.matrix);
+      }
+      flight.mesh.instanceMatrix.needsUpdate = true;
+      if (finished) {
+        effects.remove(flight.mesh);
+        flight.mesh.geometry.dispose();
+        flight.mesh.material.dispose();
+      } else active.push(flight);
+    }
+    rewardFlights = active;
+    if (!rewardFlights.length) renderStack(true);
   }
 
   function caveShell() {
@@ -180,10 +341,6 @@ export function createActivityVisuals({ canvas, container, caption, getState, de
     sphere(bellows, 0.55, [2.45, 0.74, -2.65], standard(0x6d3e2e), [1.5, 0.65, 1.0], 10);
     cylinder(bellows, 0.08, 1.3, [2.45, 0.8, -1.85], standard(0x765335), [Math.PI / 2, 0, 0], 8);
     environment.add(bellows);
-    for (let index = 0; index < 5; index += 1) {
-      const bar = box(environment, [0.95, 0.18, 0.28], [-2.6 + index * 0.35, 0.17 + index * 0.13, -2.45], metal(0x737a7e), [0, index * 0.08, index * 0.05]);
-      bar.rotation.y = 0.35;
-    }
     accentMaterial = emissive(0xe89143, 2.2);
     const crucible = cylinder(tool, 0.45, 0.56, [0.5, 0.92, 2.35], metal(0x34393b), [Math.PI / 2, 0, 0], 12);
     const molten = cylinder(tool, 0.39, 0.04, [0.5, 0.92, 2.05], accentMaterial, [Math.PI / 2, 0, 0], 14);
@@ -272,6 +429,10 @@ export function createActivityVisuals({ canvas, container, caption, getState, de
   function rebuild(nextMode) {
     disposeGroup(environment);
     disposeGroup(tool);
+    disposeGroup(stack);
+    disposeGroup(effects);
+    rewardFlights = [];
+    renderedStackKey = '';
     accentMaterial = null;
     animated = {};
     mode = nextMode;
@@ -279,8 +440,7 @@ export function createActivityVisuals({ canvas, container, caption, getState, de
     else if (mode === 'smelting') buildSmelting();
     else if (mode === 'combat') buildTraining();
     else buildForging();
-    const [title, description] = LABELS[mode] || LABELS.mining;
-    if (caption) caption.innerHTML = `<strong>${title}</strong><span>${description}</span>`;
+    updateCaption();
     container.dataset.mode = mode;
   }
 
@@ -322,6 +482,7 @@ export function createActivityVisuals({ canvas, container, caption, getState, de
       animated.particles.points.material.opacity = action ? 0.88 : 0.36;
     }
     if (accentMaterial) accentMaterial.emissiveIntensity = Math.max(0.9, (accentMaterial.emissiveIntensity || 1.5) + Math.sin(seconds * 6.4) * 0.025);
+    animateRewards(time);
     fireLight.intensity = fireBase * (1 + Math.sin(seconds * 8.2) * 0.08);
     camera.position.y = 1.62 + Math.sin(seconds * 1.8) * 0.012;
     renderer.render(scene, camera);
@@ -335,6 +496,7 @@ export function createActivityVisuals({ canvas, container, caption, getState, de
       accentMaterial.color.set(options.metalColor);
       accentMaterial.emissive.set(options.metalColor);
     }
+    setStack(options);
   }
 
   function show(nextMode, options = {}) {
@@ -363,9 +525,12 @@ export function createActivityVisuals({ canvas, container, caption, getState, de
     hide();
     disposeGroup(environment);
     disposeGroup(tool);
+    disposeGroup(stack);
+    disposeGroup(effects);
+    rewardFlights = [];
     renderer.dispose();
   }
 
   debug?.log('VISUAL', 'first-person activity renderer ready', { profile: mobile ? 'mobile' : 'desktop' });
-  return { show, hide, update, pulse, destroy, getMode: () => mode, getState };
+  return { show, hide, update, pulse, reward, destroy, getMode: () => mode, getState };
 }

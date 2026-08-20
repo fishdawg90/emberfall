@@ -67,6 +67,7 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
     canvas: document.getElementById('activityCanvas'),
     container: document.getElementById('activityStage'),
     caption: document.getElementById('activityCaption'),
+    gain: document.getElementById('activityGain'),
     getState,
     debug
   });
@@ -182,6 +183,43 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
     return `<div class="skillStrip"><span>Lv ${skill.l}</span><div><i style="width:${Math.min(100, skill.x / needed * 100)}%"></i></div><small>${skill.x} / ${needed} XP</small></div>`;
   }
 
+  function pluralMaterial(name, count) {
+    if (count === 1 || /ore$/i.test(name)) return name;
+    return `${name}s`;
+  }
+
+  function activityMetal(state, mode) {
+    if (mode === 'forging') return METALS.find(metal => metal.id === forgeMetal) || METALS[0];
+    if (mode === 'smelting') return METALS.find(metal => metal.id === state.smelt) || METALS[0];
+    if (mode === 'mining') return METALS[state.depth] || METALS[0];
+    return null;
+  }
+
+  function activityStack(state, mode, selectedMetal = activityMetal(state, mode)) {
+    if (!selectedMetal || mode === 'combat') return { stackCount: null, stackLabel: '' };
+    const kind = mode === 'mining' ? 'Ore' : 'Bar';
+    const count = Number(state.inv?.[`${selectedMetal.id}${kind}`]) || 0;
+    const name = mode === 'mining' ? selectedMetal.ore : selectedMetal.bar;
+    return { stackCount: count, stackLabel: pluralMaterial(name, count) };
+  }
+
+  function showWorkReward(result) {
+    if (!result?.ok || !result.metal || result.amount < 1) {
+      activityVisuals.pulse(620);
+      return;
+    }
+    const state = getState();
+    const kind = result.kind || (result.activity === 'mining' ? 'ore' : 'bar');
+    const stackOptions = activityStack(state, result.activity, result.metal);
+    activityVisuals.reward({
+      kind,
+      amount: result.amount,
+      label: kind === 'ore' ? pluralMaterial(result.metal.ore, result.amount) : pluralMaterial(result.metal.bar, result.amount),
+      metalColor: result.metal.color,
+      ...stackOptions
+    });
+  }
+
   function syncActivityVisuals() {
     const state = getState();
     if (!panel.classList.contains('show') || state.explore?.combat || !['work', 'forge'].includes(activeTab)) {
@@ -189,15 +227,12 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
       return;
     }
     const mode = activeTab === 'forge' ? 'forging' : state.active;
-    const selectedMetal = activeTab === 'forge'
-      ? METALS.find(metal => metal.id === forgeMetal)
-      : state.active === 'smelting'
-        ? METALS.find(metal => metal.id === state.smelt)
-        : METALS[state.depth] || METALS[0];
+    const selectedMetal = activityMetal(state, mode);
     activityVisuals.show(mode, {
       running: activeTab === 'work' && state.running,
       progress: activeTab === 'work' ? state.p : 0,
-      metalColor: selectedMetal?.color
+      metalColor: selectedMetal?.color,
+      ...activityStack(state, mode, selectedMetal)
     });
   }
 
@@ -402,8 +437,9 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
       return true;
     }
     if (action === 'opportunity') {
-      activityVisuals.pulse(620);
-      return applyResult(runOpportunity(state), 'claim work opportunity', result => result.radiant ? 'Radiant opportunity claimed!' : 'Opportunity claimed');
+      const result = runOpportunity(state);
+      if (result.ok) showWorkReward(result);
+      return applyResult(result, 'claim work opportunity', value => value.radiant ? 'Radiant opportunity claimed!' : 'Opportunity claimed');
     }
     if (action === 'buy-upgrade') return applyResult(buyUpgrade(state, state.active, rawValue), `upgrade ${state.active}.${rawValue}`, result => `${UPGRADES[result.upgradeId].name} upgraded`);
     if (action === 'forge-filter') {
@@ -412,8 +448,15 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
       return true;
     }
     if (action === 'forge') {
-      activityVisuals.pulse(720);
-      return applyResult(forgeItem(state, rawValue), `forge ${rawValue}`, result => result.quality === 'Masterwork' ? `Masterwork! ${result.item.name}` : `${result.item.name} forged`);
+      const result = forgeItem(state, rawValue);
+      if (result.ok) activityVisuals.reward({
+        kind: 'gear',
+        amount: 1,
+        label: result.item.name,
+        metalColor: result.metal.color,
+        ...activityStack(state, 'forging', result.metal)
+      });
+      return applyResult(result, `forge ${rawValue}`, value => value.quality === 'Masterwork' ? `Masterwork! ${value.item.name}` : `${value.item.name} forged`);
     }
     if (action === 'challenge-gate') {
       const depth = Number(rawValue);
@@ -520,6 +563,7 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
           notify(result.message, 'bad');
           break;
         }
+        showWorkReward(result);
         commitAction(`${result.activity} cycle`, true);
         state = getState();
         if (result.critical) notify(`Critical! +${result.amount} ${result.metal?.name || 'Training'}`, 'gold');
@@ -534,7 +578,14 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
     if (panel.classList.contains('show')) updateLiveIndicators();
     if (panel.classList.contains('show') && ['work', 'forge'].includes(activeTab)) {
       const state = getState();
-      activityVisuals.update({ running: activeTab === 'work' && state.running, progress: state.p });
+      const mode = activeTab === 'forge' ? 'forging' : state.active;
+      const selectedMetal = activityMetal(state, mode);
+      activityVisuals.update({
+        running: activeTab === 'work' && state.running,
+        progress: state.p,
+        metalColor: selectedMetal?.color,
+        ...activityStack(state, mode, selectedMetal)
+      });
     }
   }, 180);
 
