@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><title>Emberfall UI harness</title></head>
+<body>
+  <button class="gameMenuButton" id="gameMenuButton" data-open-game-tab="work"><span>55c</span><i>Hero 1</i></button>
+  <nav class="gameDock"><button data-open-game-tab="work"><i>⛏</i>Work</button><button data-open-game-tab="forge"><i>⚒</i>Forge</button><button data-open-game-tab="gear"><i>♜</i>Gear</button><button data-open-game-tab="town"><i>⌂</i>Town</button><button data-open-game-tab="market"><i>◇</i>Market</button></nav>
+  <div class="gamePanel" id="gamePanel" aria-hidden="true"><div class="gamePanelHead"><div><small>EMBERFALL SYSTEMS</small><b id="gamePanelTitle">Production</b></div><span>Original progression · hosted 3D</span><button id="gamePanelClose">Return to world</button></div><div class="gamePanelTabs" id="gamePanelTabs"><button class="active" data-game-tab="work">Work</button><button data-game-tab="forge">Forge</button><button data-game-tab="gear">Gear</button><button data-game-tab="town">Town</button><button data-game-tab="market">Market</button></div><div class="gamePanelBody" id="gamePanelBody"></div></div>
+  <div class="combatPanel" id="combatPanel" aria-hidden="true"></div>
+  <div class="gameToast" id="gameToast"></div>
+  <script type="module">
+    const source = await fetch('../index.html').then(response => response.text());
+    const css = source.match(/<style>([\s\S]*?)<\/style>/)?.[1] || '';
+    const style = document.createElement('style');
+    style.textContent = css;
+    document.head.append(style);
+    window.EmberDebug = { log() {} };
+    const [{ createFreshState, saveGameState }, { createGameUI }] = await Promise.all([
+      import('../game-state.js'),
+      import('../game-ui.js')
+    ]);
+    let state = createFreshState();
+    state.coins = 500;
+    state.inv.ironBar = 6;
+    window.TestState = state;
+    window.TestUI = createGameUI({
+      getState: () => state,
+      commit: () => {
+        const result = saveGameState(state);
+        state = result.state;
+        window.TestState = state;
+        return result;
+      }
+    });
+    window.TestReady = true;
+  </script>
+</body>
+</html>
