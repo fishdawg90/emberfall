@@ -6,22 +6,74 @@
 <meta name="theme-color" content="#101820">
 <title>Emberfall</title>
 <style>
-:root{--glass:#09131ddd;--line:#ffffff26;--ink:#eef4f6;--gold:#dfb66b}*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#0a1118;color:var(--ink);font-family:Inter,system-ui,sans-serif}button{font:inherit;color:inherit}#view{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;background:#91afbf}.top{position:fixed;z-index:20;left:0;right:0;top:0;padding:calc(10px + env(safe-area-inset-top)) 12px 10px;display:flex;justify-content:space-between;align-items:center;pointer-events:none;background:linear-gradient(#071018df,transparent)}.brand b{font-size:14px}.brand small{display:block;color:#b7c4cb;font-size:8px;margin-top:2px}.status{font-size:8px;padding:7px 9px;border-radius:999px;background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(9px)}.status:before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;background:#dfaa54;box-shadow:0 0 8px #dfaa54}.status.ready:before{background:#76d28f;box-shadow:0 0 8px #76d28f}.styles{position:fixed;z-index:22;top:calc(65px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);padding:4px;display:flex;gap:4px;border:1px solid var(--line);border-radius:15px;background:var(--glass);backdrop-filter:blur(10px)}.styles button,.planBtn{border:0;background:transparent;padding:8px 11px;border-radius:10px;font-size:8px;font-weight:900}.styles button.active{background:linear-gradient(#e4bd70,#b87d3e);color:#18110a}.planBtn{position:fixed;z-index:23;right:10px;top:calc(110px + env(safe-area-inset-top));background:var(--glass);border:1px solid var(--line)}.help{position:fixed;z-index:20;left:50%;bottom:calc(17px + env(safe-area-inset-bottom));transform:translateX(-50%);white-space:nowrap;padding:8px 11px;border:1px solid var(--line);border-radius:999px;background:var(--glass);font-size:8px;color:#c8d2d8}.help b{color:#f1cf8f}.crosshair{position:fixed;z-index:9;left:50%;top:50%;width:4px;height:4px;border-radius:50%;background:white;opacity:.35;transform:translate(-50%,-50%);pointer-events:none}.loader{position:fixed;z-index:40;left:50%;top:50%;transform:translate(-50%,-50%);width:min(350px,calc(100% - 36px));padding:17px 18px;border:1px solid var(--line);border-radius:18px;background:#09141eed;box-shadow:0 20px 55px #0009;transition:.25s}.loader.hide{opacity:0;pointer-events:none}.loader b{font-size:14px}.loader span{display:block;color:#aebbc4;font-size:9px;margin-top:5px;line-height:1.4}.track{height:5px;border-radius:6px;background:#ffffff17;overflow:hidden;margin-top:12px}.bar{height:100%;width:3%;background:linear-gradient(90deg,#a87240,#f0cf8c);transition:.2s}.plan{display:none;position:fixed;z-index:30;right:10px;top:calc(148px + env(safe-area-inset-top));width:min(290px,calc(100% - 20px));height:290px;border:1px solid var(--line);border-radius:15px;background:#07111ae8;overflow:hidden;box-shadow:0 15px 45px #0009}.plan.show{display:block}.plan canvas{width:100%;height:100%}.error{display:none;position:fixed;z-index:100;left:10px;right:10px;bottom:70px;padding:11px 13px;border:1px solid #ff8b75;border-radius:12px;background:#4a1515ef;color:#ffe7df;font-size:11px;white-space:pre-wrap}.tap{display:none;position:fixed;z-index:15;width:34px;height:18px;border:2px solid #edca83;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none}.walk{display:none;position:fixed;z-index:23;left:10px;bottom:calc(17px + env(safe-area-inset-bottom));padding:7px 9px;border:1px solid var(--line);border-radius:11px;background:var(--glass);font-size:8px}.walk.show{display:block}.walk button{margin-left:7px;border:0;border-radius:7px;background:#a56e3f;padding:5px 7px;color:#fff;font-size:8px}@media(max-width:430px){.brand small{display:none}.plan{width:260px;height:260px}}
+:root{--glass:#09131ddd;--line:#ffffff26;--ink:#eef4f6;--gold:#dfb66b}*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#0a1118;color:var(--ink);font-family:Inter,system-ui,sans-serif}button{font:inherit;color:inherit}#view{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;background:#91afbf}.top{position:fixed;z-index:20;left:0;right:0;top:0;padding:calc(10px + env(safe-area-inset-top)) 12px 10px;display:flex;justify-content:space-between;align-items:center;pointer-events:none;background:linear-gradient(#071018df,transparent)}.brand b{font-size:14px}.brand small{display:block;color:#b7c4cb;font-size:8px;margin-top:2px}.status{font-size:8px;padding:7px 9px;border-radius:999px;background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(9px)}.status:before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;background:#dfaa54;box-shadow:0 0 8px #dfaa54}.status.ready:before{background:#76d28f;box-shadow:0 0 8px #76d28f}.styles{position:fixed;z-index:22;top:calc(65px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);padding:4px;display:flex;gap:4px;border:1px solid var(--line);border-radius:15px;background:var(--glass);backdrop-filter:blur(10px)}.styles button,.planBtn{border:0;background:transparent;padding:8px 11px;border-radius:10px;font-size:8px;font-weight:900}.styles button.active{background:linear-gradient(#e4bd70,#b87d3e);color:#18110a}.planBtn{position:fixed;z-index:23;right:10px;top:calc(110px + env(safe-area-inset-top));background:var(--glass);border:1px solid var(--line)}.help{position:fixed;z-index:20;left:50%;bottom:calc(17px + env(safe-area-inset-bottom));transform:translateX(-50%);white-space:nowrap;padding:8px 11px;border:1px solid var(--line);border-radius:999px;background:var(--glass);font-size:8px;color:#c8d2d8}.help b{color:#f1cf8f}.crosshair{position:fixed;z-index:9;left:50%;top:50%;width:4px;height:4px;border-radius:50%;background:white;opacity:.35;transform:translate(-50%,-50%);pointer-events:none}.loader{position:fixed;z-index:40;left:50%;top:50%;transform:translate(-50%,-50%);width:min(350px,calc(100% - 36px));padding:17px 18px;border:1px solid var(--line);border-radius:18px;background:#09141eed;box-shadow:0 20px 55px #0009;transition:.25s}.loader.hide{opacity:0;pointer-events:none}.loader b{font-size:14px}.loader span{display:block;color:#aebbc4;font-size:9px;margin-top:5px;line-height:1.4}.track{height:5px;border-radius:6px;background:#ffffff17;overflow:hidden;margin-top:12px}.bar{height:100%;width:3%;background:linear-gradient(90deg,#a87240,#f0cf8c);transition:.2s}.plan{display:none;position:fixed;z-index:30;right:10px;top:calc(148px + env(safe-area-inset-top));width:min(290px,calc(100% - 20px));height:290px;border:1px solid var(--line);border-radius:15px;background:#07111ae8;overflow:hidden;box-shadow:0 15px 45px #0009}.plan.show{display:block}.plan canvas{width:100%;height:100%}.error{display:none;position:fixed;z-index:100;left:10px;right:10px;bottom:70px;padding:11px 13px;border:1px solid #ff8b75;border-radius:12px;background:#4a1515ef;color:#ffe7df;font-size:11px;white-space:pre-wrap}.tap{display:none;position:fixed;z-index:15;width:34px;height:18px;border:2px solid #edca83;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none}.walk{display:none;position:fixed;z-index:23;left:10px;bottom:calc(17px + env(safe-area-inset-bottom));padding:7px 9px;border:1px solid var(--line);border-radius:11px;background:var(--glass);font-size:8px}.walk.show{display:block}.walk button{margin-left:7px;border:0;border-radius:7px;background:#a56e3f;padding:5px 7px;color:#fff;font-size:8px}
+.debugBtn{position:fixed;z-index:120;left:10px;top:calc(104px + env(safe-area-inset-top));border:1px solid var(--line);border-radius:10px;background:#09131ddd;padding:8px 10px;font-size:8px;font-weight:900}.debugBtn.bad{border-color:#ff836f;color:#ffd9d2;background:#451818e8}.debug{display:none;position:fixed;z-index:130;inset:calc(70px + env(safe-area-inset-top)) 8px calc(12px + env(safe-area-inset-bottom));background:#071018f5;border:1px solid #ffffff30;border-radius:16px;box-shadow:0 20px 70px #000b;overflow:hidden}.debug.show{display:flex;flex-direction:column}.debugHead{display:flex;align-items:center;gap:7px;padding:10px;border-bottom:1px solid #ffffff1e}.debugHead b{font-size:12px;margin-right:auto}.debugHead button{border:1px solid #ffffff24;background:#142331;border-radius:9px;padding:7px 9px;font-size:8px;font-weight:900}.debugHead .copy{background:#b47b3f;color:#fff}.debugMeta{padding:8px 10px;border-bottom:1px solid #ffffff18;color:#aebac3;font-size:8px;line-height:1.5}.debugLog{flex:1;overflow:auto;margin:0;padding:10px;font:9px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;color:#dce6eb}.debugToast{position:fixed;z-index:140;left:50%;bottom:25px;transform:translateX(-50%);padding:8px 11px;border-radius:999px;background:#172a22;color:#bff0cc;border:1px solid #76d28f66;font-size:9px;opacity:0;pointer-events:none;transition:.2s}.debugToast.show{opacity:1}
+@media(max-width:430px){.brand small{display:none}.plan{width:260px;height:260px}.debugBtn{top:calc(101px + env(safe-area-inset-top))}}
 </style>
 </head>
 <body>
 <canvas id="view"></canvas>
 <div class="top"><div class="brand"><b>Emberfall</b><small>hosted 3D town generator</small></div><div class="status" id="status">Starting…</div></div>
 <div class="styles"><button class="active" data-style="realistic">Realistic</button><button data-style="dramatic">Dramatic</button></div>
+<button class="debugBtn" id="debugBtn">Debug</button>
 <button class="planBtn" id="planBtn">Town plan</button>
 <div class="plan" id="plan"><canvas id="planCanvas" width="600" height="600"></canvas></div>
 <div class="crosshair"></div><div class="tap" id="tap"></div>
 <div class="walk" id="walk">Walking <button id="stop">Stop</button></div>
 <div class="help"><b>Tap to walk</b> · drag right to look right · drag up to look up</div>
-<div class="loader" id="loader"><b>Building Emberfall</b><span id="loadingText">Loading complete building assets…</span><div class="track"><div class="bar" id="bar"></div></div></div>
+<div class="loader" id="loader"><b>Building Emberfall</b><span id="loadingText">Starting 3D engine…</span><div class="track"><div class="bar" id="bar"></div></div></div>
 <div class="error" id="error"></div>
-<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/loaders/GLTFLoader.js"></script>
-<script src="game.js"></script>
+<div class="debug" id="debugPanel"><div class="debugHead"><b>Emberfall debug report</b><button class="copy" id="copyDebug">Copy report</button><button id="reloadDebug">Reload</button><button id="closeDebug">Close</button></div><div class="debugMeta" id="debugMeta"></div><pre class="debugLog" id="debugLog"></pre></div>
+<div class="debugToast" id="debugToast">Copied debug report</div>
+<script>
+(()=>{
+ const entries=[]; const started=new Date();
+ const clean=v=>{try{if(v instanceof Error)return v.stack||v.message;if(typeof v==='string')return v;return JSON.stringify(v)}catch(_){return String(v)}};
+ window.EmberDebug={
+   log(type,...args){const t=((performance.now()/1000).toFixed(2)+'s').padStart(8);entries.push(`${t} [${type}] ${args.map(clean).join(' ')}`);if(entries.length>300)entries.shift();render()},
+   report(){return [`Emberfall debug report`,`Time: ${new Date().toISOString()}`,`URL: ${location.href}`,`UA: ${navigator.userAgent}`,`Screen: ${screen.width}x${screen.height} DPR ${devicePixelRatio}`,`Viewport: ${innerWidth}x${innerHeight}`,`Online: ${navigator.onLine}`,`Started: ${started.toISOString()}`,`THREE: ${window.THREE?.REVISION||'not loaded'}`,`GLTFLoader: ${typeof window.THREE?.GLTFLoader}`,`--- LOG ---`,...entries].join('\n')}
+ };
+ const old={log:console.log,warn:console.warn,error:console.error};
+ console.log=(...a)=>{old.log(...a);window.EmberDebug.log('LOG',...a)};
+ console.warn=(...a)=>{old.warn(...a);window.EmberDebug.log('WARN',...a)};
+ console.error=(...a)=>{old.error(...a);window.EmberDebug.log('ERROR',...a);markBad()};
+ function markBad(){document.getElementById('debugBtn')?.classList.add('bad')}
+ function render(){const el=document.getElementById('debugLog');if(el){el.textContent=entries.join('\n');el.scrollTop=el.scrollHeight}const meta=document.getElementById('debugMeta');if(meta)meta.textContent=`Three ${window.THREE?.REVISION||'—'} · GLTFLoader ${typeof window.THREE?.GLTFLoader} · ${navigator.onLine?'online':'offline'} · ${innerWidth}×${innerHeight}`}
+ addEventListener('error',e=>{window.EmberDebug.log('WINDOW ERROR',e.message,`${e.filename||''}:${e.lineno||''}:${e.colno||''}`,e.error||'');markBad()});
+ addEventListener('unhandledrejection',e=>{window.EmberDebug.log('PROMISE ERROR',e.reason||'unknown rejection');markBad()});
+ addEventListener('online',()=>window.EmberDebug.log('NETWORK','online'));addEventListener('offline',()=>window.EmberDebug.log('NETWORK','offline'));
+ addEventListener('DOMContentLoaded',()=>{
+  const panel=document.getElementById('debugPanel'),toast=document.getElementById('debugToast');
+  document.getElementById('debugBtn').onclick=()=>{panel.classList.add('show');render()};
+  document.getElementById('closeDebug').onclick=()=>panel.classList.remove('show');
+  document.getElementById('reloadDebug').onclick=()=>location.reload();
+  document.getElementById('copyDebug').onclick=async()=>{const txt=window.EmberDebug.report();try{await navigator.clipboard.writeText(txt)}catch(_){const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove()}toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),1400)};
+  render();
+ });
+ window.EmberDebug.log('BOOT','debug recorder active');
+})();
+</script>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/"}}
+</script>
+<script type="module">
+try{
+  EmberDebug.log('BOOT','loading Three.js module');
+  const THREE_NS=await import('three');
+  EmberDebug.log('BOOT','Three.js loaded',THREE_NS.REVISION);
+  const {GLTFLoader}=await import('three/addons/loaders/GLTFLoader.js');
+  EmberDebug.log('BOOT','GLTFLoader loaded',typeof GLTFLoader);
+  window.THREE=Object.assign({},THREE_NS,{GLTFLoader});
+  document.getElementById('loadingText').textContent='3D engine ready · loading town…';
+  EmberDebug.log('BOOT','starting game.js');
+  await import('./game.js?v=4');
+  EmberDebug.log('BOOT','game.js module executed');
+}catch(e){
+  console.error('Bootstrap failed',e);
+  const box=document.getElementById('error');box.style.display='block';box.textContent='Emberfall bootstrap error:\n'+(e.stack||e.message||String(e))+'\n\nTap Debug → Copy report.';
+  document.getElementById('loader').classList.add('hide');
+  document.getElementById('status').textContent='Error';
+}
+</script>
 </body>
 </html>
