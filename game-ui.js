@@ -1,5 +1,7 @@
 import { ACTIVITIES, EQUIPMENT_SLOTS, METALS, RECIPES, TOWN_PROJECTS, UPGRADES } from './game-catalog.js';
 import { endExploreTurn, getCombatView, playExploreCard, startExploreCombat } from './combat-services.js';
+import { createActivityVisuals } from './activity-visuals.js';
+import { enemyFigureMarkup, playerWeaponMarkup } from './combat-visuals.js';
 import {
   buyUpgrade,
   equipItem,
@@ -53,10 +55,43 @@ export function createGameUI({ getState, commit, debug = window.EmberDebug }) {
   const toast = document.getElementById('gameToast');
   const hud = document.getElementById('gameMenuButton');
   const combatPanel = document.getElementById('combatPanel');
+  const activityVisuals = createActivityVisuals({
+    canvas: document.getElementById('activityCanvas'),
+    container: document.getElementById('activityStage'),
+    caption: document.getElementById('activityCaption'),
+    getState,
+    debug
+  });
   let activeTab = 'work';
   let forgeMetal = METALS.find(metal => metal.id === RECIPES.find(recipe => recipe.id === getState().selectedRecipe)?.m)?.id || 'iron';
   let toastTimer = 0;
   let lastTick = performance.now();
+  let combatFx = { enemy: '', player: '', weapon: '' };
+  let combatFxTimer = 0;
+  let combatOutro = null;
+
+  function showCombatEffect({ enemy = '', player = '', weapon = '', outro = null, duration = 560 } = {}) {
+    combatFx = { enemy, player, weapon };
+    if (outro) combatOutro = outro;
+    clearTimeout(combatFxTimer);
+    combatFxTimer = setTimeout(() => {
+      combatFx = { enemy: '', player: '', weapon: '' };
+      if (outro) combatOutro = null;
+      renderCombat();
+    }, duration);
+  }
+
+  function outroSnapshot(view, { type, log }) {
+    return {
+      type,
+      playerHp: type === 'defeat' ? 0 : null,
+      view: {
+        ...view,
+        combat: { ...view.combat, hp: type === 'victory' ? 0 : view.combat.hp, energy: 0, hand: [], resolving: true, log },
+        cards: []
+      }
+    };
+  }
 
   function notify(message, tone = 'normal') {
     toast.textContent = message;
@@ -95,6 +130,25 @@ export function createGameUI({ getState, commit, debug = window.EmberDebug }) {
     const skill = state.skills[id];
     const needed = skillXpNeeded(skill.l);
     return `<div class="skillStrip"><span>Lv ${skill.l}</span><div><i style="width:${Math.min(100, skill.x / needed * 100)}%"></i></div><small>${skill.x} / ${needed} XP</small></div>`;
+  }
+
+  function syncActivityVisuals() {
+    const state = getState();
+    if (!panel.classList.contains('show') || state.explore?.combat || !['work', 'forge'].includes(activeTab)) {
+      activityVisuals.hide();
+      return;
+    }
+    const mode = activeTab === 'forge' ? 'forging' : state.active;
+    const selectedMetal = activeTab === 'forge'
+      ? METALS.find(metal => metal.id === forgeMetal)
+      : state.active === 'smelting'
+        ? METALS.find(metal => metal.id === state.smelt)
+        : METALS[state.depth] || METALS[0];
+    activityVisuals.show(mode, {
+      running: activeTab === 'work' && state.running,
+      progress: activeTab === 'work' ? state.p : 0,
+      metalColor: selectedMetal?.color
+    });
   }
 
   function renderWork() {
@@ -194,26 +248,33 @@ export function createGameUI({ getState, commit, debug = window.EmberDebug }) {
 
   function renderCombat() {
     const state = getState();
-    const view = getCombatView(state);
+    const liveView = getCombatView(state);
+    const view = liveView || combatOutro?.view;
     if (!view) {
       combatPanel.classList.remove('show');
       combatPanel.setAttribute('aria-hidden', 'true');
       combatPanel.replaceChildren();
       return;
     }
+    activityVisuals.hide();
     panel.classList.remove('show');
     panel.setAttribute('aria-hidden', 'true');
     const { combat, enemy, intent, cards } = view;
+    const outro = !liveView && Boolean(combatOutro);
     const enemyHp = Math.max(0, combat.hp / combat.maxHp * 100);
     const guard = Math.max(0, combat.guard / combat.guardMax * 100);
     const expeditionMaxHp = state.explore.maxHp || view.maxHp;
-    const playerHp = Math.max(0, state.explore.hp / expeditionMaxHp * 100);
+    const currentPlayerHp = combatOutro?.playerHp ?? state.explore.hp;
+    const playerHp = Math.max(0, currentPlayerHp / expeditionMaxHp * 100);
     const hand = cards.map((card, index) => {
       const offset = index - (cards.length - 1) / 2;
-      const disabled = card.cost > combat.energy || combat.resolving;
+      const disabled = outro || card.cost > combat.energy || combat.resolving;
       return `<button class="combatCard" data-combat-card="${index}" style="--fan-r:${(offset * 2.4).toFixed(1)}deg;--fan-y:${Math.abs(offset * 2.2).toFixed(1)}px" ${disabled ? 'disabled' : ''}><span class="combatCardCost">${card.cost}</span><span class="combatCardIcon">${card.icon}</span><strong>${card.name}</strong><small>${card.text}</small><em>${card.kind}</em></button>`;
     }).join('');
-    combatPanel.innerHTML = `<div class="combatTop"><div class="combatEnemy"><div class="combatEnemyHead"><strong>${combat.boss ? '☇ ' : ''}${enemy.name}</strong><span>${combat.hp}/${combat.maxHp} HP</span></div><div class="combatBars"><div class="combatBar hp"><i style="width:${enemyHp}%"></i><em>HEALTH</em></div><div class="combatBar guard"><i style="width:${guard}%"></i><em>${combat.broken ? 'BROKEN' : `${combat.guard}/${combat.guardMax} BREAK GUARD`}</em></div></div></div><div class="combatIntent"><small>INTENT</small><strong>${combat.broken ? 'Staggered' : intent.name}</strong><span>${combat.broken ? 'Attack cancelled' : intent.text}</span></div></div><div class="combatArena"><div class="combatEnemyFigure">${enemy.icon}</div></div><div class="combatBottom"><div class="combatPlayer"><div class="combatPlayerCard"><div class="combatPlayerHead"><strong>Hero · Turn ${combat.turn}</strong><span>${state.explore.hp}/${expeditionMaxHp} HP${combat.block ? ` · ${combat.block} Block` : ''}</span></div><div class="combatBar player"><i style="width:${playerHp}%"></i><em>EXPEDITION HEALTH</em></div></div><div class="combatEnergy"><b>${combat.energy}</b> ENERGY</div></div><div class="combatLog">${escapeHtml(combat.log)}</div><div class="combatHand">${hand}</div><button class="combatEnd" data-combat-end ${combat.resolving ? 'disabled' : ''}>End turn · enemy acts</button></div>`;
+    const area = ['forest', 'cave', 'town', 'world'].includes(combat.origin?.area) ? combat.origin.area : 'world';
+    const enemyFigure = enemyFigureMarkup(enemy.id, { boss: combat.boss, broken: combat.broken, effect: combatFx.enemy });
+    const weaponFigure = playerWeaponMarkup({ effect: combatFx.weapon, defeated: combatOutro?.type === 'defeat' });
+    combatPanel.innerHTML = `<div class="combatTop"><div class="combatEnemy"><div class="combatEnemyHead"><strong>${combat.boss ? '☇ ' : ''}${enemy.name}</strong><span>${combat.hp}/${combat.maxHp} HP</span></div><div class="combatBars"><div class="combatBar hp"><i style="width:${enemyHp}%"></i><em>HEALTH</em></div><div class="combatBar guard"><i style="width:${guard}%"></i><em>${combat.broken ? 'BROKEN' : `${combat.guard}/${combat.guardMax} BREAK GUARD`}</em></div></div></div><div class="combatIntent"><small>${outro ? 'RESULT' : 'INTENT'}</small><strong>${outro ? (combatOutro.type === 'victory' ? 'Defeated' : 'Overwhelmed') : combat.broken ? 'Staggered' : intent.name}</strong><span>${outro ? (combatOutro.type === 'victory' ? 'Rewards secured' : 'Returning to Greyfen') : combat.broken ? 'Attack cancelled' : intent.text}</span></div></div><div class="combatArena area-${area} ${combatFx.player}">${enemyFigure}${weaponFigure}</div><div class="combatBottom"><div class="combatPlayer"><div class="combatPlayerCard"><div class="combatPlayerHead"><strong>Hero · Turn ${combat.turn}</strong><span>${currentPlayerHp}/${expeditionMaxHp} HP${combat.block ? ` · ${combat.block} Block` : ''}</span></div><div class="combatBar player"><i style="width:${playerHp}%"></i><em>EXPEDITION HEALTH</em></div></div><div class="combatEnergy"><b>${combat.energy}</b> ENERGY</div></div><div class="combatLog">${escapeHtml(combat.log)}</div><div class="combatHand">${hand}</div><button class="combatEnd" data-combat-end ${outro || combat.resolving ? 'disabled' : ''}>${outro ? 'Resolving battle…' : 'End turn · enemy acts'}</button></div>`;
     combatPanel.classList.add('show');
     combatPanel.setAttribute('aria-hidden', 'false');
   }
@@ -225,6 +286,7 @@ export function createGameUI({ getState, commit, debug = window.EmberDebug }) {
     document.querySelectorAll('[data-game-tab]').forEach(element => element.classList.toggle('active', element.dataset.gameTab === activeTab));
     body.innerHTML = renderers[activeTab]();
     updateLiveIndicators();
+    syncActivityVisuals();
     if (preserveScroll) body.scrollTop = scrollTop;
   }
 
@@ -261,6 +323,7 @@ export function createGameUI({ getState, commit, debug = window.EmberDebug }) {
   function close() {
     panel.classList.remove('show');
     panel.setAttribute('aria-hidden', 'true');
+    activityVisuals.hide();
   }
 
   function onAction(action, rawValue) {
@@ -278,14 +341,20 @@ export function createGameUI({ getState, commit, debug = window.EmberDebug }) {
       notify(state.running ? `${ACTIVITIES[state.active].name} started` : 'Production stopped');
       return true;
     }
-    if (action === 'opportunity') return applyResult(runOpportunity(state), 'claim work opportunity', result => result.radiant ? 'Radiant opportunity claimed!' : 'Opportunity claimed');
+    if (action === 'opportunity') {
+      activityVisuals.pulse(620);
+      return applyResult(runOpportunity(state), 'claim work opportunity', result => result.radiant ? 'Radiant opportunity claimed!' : 'Opportunity claimed');
+    }
     if (action === 'buy-upgrade') return applyResult(buyUpgrade(state, state.active, rawValue), `upgrade ${state.active}.${rawValue}`, result => `${UPGRADES[result.upgradeId].name} upgraded`);
     if (action === 'forge-filter') {
       forgeMetal = rawValue;
       renderBody();
       return true;
     }
-    if (action === 'forge') return applyResult(forgeItem(state, rawValue), `forge ${rawValue}`, result => result.quality === 'Masterwork' ? `Masterwork! ${result.item.name}` : `${result.item.name} forged`);
+    if (action === 'forge') {
+      activityVisuals.pulse(720);
+      return applyResult(forgeItem(state, rawValue), `forge ${rawValue}`, result => result.quality === 'Masterwork' ? `Masterwork! ${result.item.name}` : `${result.item.name} forged`);
+    }
     if (action === 'equip') {
       const item = state.gear.find(entry => entry.id === Number(rawValue));
       return applyResult(equipItem(state, item?.type, Number(rawValue)), `equip ${rawValue}`, item ? `${item.name} equipped` : null);
@@ -313,8 +382,13 @@ export function createGameUI({ getState, commit, debug = window.EmberDebug }) {
   combatPanel.addEventListener('click', event => {
     const card = event.target.closest('[data-combat-card]');
     if (card && !card.disabled) {
+      const viewBefore = getCombatView(getState());
       const result = playExploreCard(getState(), Number(card.dataset.combatCard));
       if (!result.ok) return notify(result.message, 'bad');
+      if (result.victory && viewBefore) {
+        showCombatEffect({ enemy: 'fx-defeat', weapon: 'hero-strike', duration: 780, outro: outroSnapshot(viewBefore, { type: 'victory', log: `${result.enemy.name} falls. The road is clear.` }) });
+      } else if (result.justBroken) showCombatEffect({ enemy: 'fx-break', weapon: 'hero-strike', duration: 620 });
+      else if (result.damage) showCombatEffect({ enemy: 'fx-hit', weapon: 'hero-strike', duration: 460 });
       commitAction(`play combat card ${result.cardId}`);
       if (result.victory) notify(`${result.enemy.name} defeated · +${result.coins}c · +${result.xp} XP`, 'gold');
       else if (result.justBroken) notify('BREAK! Enemy intent cancelled.', 'gold');
@@ -322,8 +396,13 @@ export function createGameUI({ getState, commit, debug = window.EmberDebug }) {
     }
     const end = event.target.closest('[data-combat-end]');
     if (end && !end.disabled) {
+      const viewBefore = getCombatView(getState());
       const result = endExploreTurn(getState());
       if (!result.ok) return notify(result.message, 'bad');
+      if (result.defeat && viewBefore) {
+        showCombatEffect({ enemy: 'fx-attack', player: 'player-hit', weapon: 'player-hit', duration: 720, outro: outroSnapshot(viewBefore, { type: 'defeat', log: 'The hero is overwhelmed and retreats to Greyfen.' }) });
+      } else if (result.staggered) showCombatEffect({ enemy: 'fx-break', duration: 580 });
+      else showCombatEffect({ enemy: 'fx-attack', player: result.taken ? 'player-hit' : '', weapon: result.taken ? 'player-hit' : '', duration: 580 });
       commitAction('resolve enemy combat turn');
       if (result.defeat) notify('You were forced back to Greyfen.', 'bad');
       else if (result.staggered) notify('Enemy staggered · attack cancelled', 'gold');
@@ -365,6 +444,10 @@ export function createGameUI({ getState, commit, debug = window.EmberDebug }) {
       }
     }
     if (panel.classList.contains('show')) updateLiveIndicators();
+    if (panel.classList.contains('show') && ['work', 'forge'].includes(activeTab)) {
+      const state = getState();
+      activityVisuals.update({ running: activeTab === 'work' && state.running, progress: state.p });
+    }
   }, 180);
 
   render();
@@ -376,9 +459,12 @@ export function createGameUI({ getState, commit, debug = window.EmberDebug }) {
       notify(result.message, 'bad');
       return result;
     }
+    combatOutro = null;
+    combatFx = { enemy: '', player: '', weapon: '' };
+    clearTimeout(combatFxTimer);
     commitAction(options.boss ? 'start boss combat' : 'start travel combat');
     debug?.log('COMBAT', 'battle started', result.enemy.id, { boss: Boolean(options.boss) });
     return result;
   }
-  return { open, close, render, notify, startEncounter, destroy: () => clearInterval(timer) };
+  return { open, close, render, notify, startEncounter, destroy: () => { clearInterval(timer); clearTimeout(combatFxTimer); activityVisuals.destroy(); } };
 }

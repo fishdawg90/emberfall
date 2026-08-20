@@ -47,15 +47,15 @@ The hosted repo is intentionally small:
 | Materials and metal gates | `metals` | Gameplay catalog module, then world gate/ore nodes | Four-tier catalog migrated; 3D nodes planned |
 | Mining/smelting work loops | `acts`, `doWork`, `simulate`, `opportunity` | Headless economy service driven by UI actions/idle timestamps | Service and mobile production UI integrated |
 | Skills and upgrade trees | `skills`, `up`, `need`, `addXp`, `cost`, `can` | Progression service with no renderer dependency | Formulas, purchases, and UI integrated |
-| Forging and quality | `recipes`, `beginForge`, `finishForge` | Forge service plus a mobile workshop panel | All 24 recipes and quality rolls integrated |
+| Forging and quality | `recipes`, `beginForge`, `finishForge` | Forge service plus a mobile workshop panel | All 24 recipes, quality rolls, and animated first-person anvil view integrated |
 | Equipment and stats | `gear`, `eq`, `EQUIP_SLOTS`, `equipSlot` | Equipment model plus 3D avatar/loadout presentation | Six-slot model and mobile loadout integrated; avatar planned |
 | Market | `sellMat`, `sellGearStack`, `marketMul` | Economy service plus town market UI | Material/gear sales and multipliers integrated |
 | Town restoration | `TOWN_PROJECTS`, `restoreTown`, `townLevel` | Persistent town entities mapped to premade buildings and services | UI plus four premade 3D service buildings integrated |
-| Overworld and regions | `WORLD_LANDMARKS`, `TOWN_LAYOUTS`, `worldBiome`, movement functions | Three.js world anchors, regions, towns, gates, and fast travel | Six landmarks, painted routes, premade anchors, map, and gated fast travel integrated |
+| Overworld and regions | `WORLD_LANDMARKS`, `TOWN_LAYOUTS`, `worldBiome`, movement functions | Three.js world anchors, regions, towns, gates, and fast travel | Six landmarks, painted routes, distinct premade town clusters, horizon scenery, detailed map, and gated fast travel integrated |
 | Tap-to-walk | `setExploreWalkTarget`, `gridPath`, `updateExploreMotion` | Existing Three.js raycast/navigation path; retain as primary mobile input | Already present; preserve |
 | Camera look | `orbit` handlers in original; pointer look in `game.js` | Existing yaw/pitch look with positive drag-to-look semantics on both axes | Already present; preserve |
 | Random encounters | `maybeRandomEncounter`, `startExploreCombat` | Exploration encounter service triggered by 3D travel distance | Integrated with first-person travel distance and safe-town suppression |
-| Card combat | `EXPLORE_CARDS`, combat state, draw/discard/energy/break rules | UI overlay over the 3D scene; combat state remains renderer-independent | Full state machine and mobile overlay integrated |
+| Card combat | `EXPLORE_CARDS`, combat state, draw/discard/energy/break rules | UI overlay over the 3D scene; combat state remains renderer-independent | Full state machine, four visible enemies, first-person weapon, and mobile animations integrated |
 | XP and region progression | `gainHeroXp`, `winExploreCombat`, `regionWins`, `claimed` | Shared progression service used by world, work, and combat | Hero XP, rewards, boss claims, and Deepsteel unlock integrated |
 | Debug report | `EmberDebug` in hosted `index.html` | Keep the existing button/report and add state/world diagnostics | Preserved; extend |
 
@@ -92,11 +92,19 @@ The hosted repo is intentionally small:
    energy, draw/discard, Break, intent, block, enemy turn, XP, loot, equipment
    cards, and boss rules. It resumes compatible saved battles and leaves the
    3D scene underneath and is now triggered by travel or a revealed guardian.
+   Four distinct enemy silhouettes animate for idle, hit, Break, attack,
+   victory, and defeat states without changing the renderer-independent rules.
 8. **Performance and compatibility pass (initial integration complete).** The
    coarse-pointer profile caps pixel ratio, reduces terrain, shadow, and grass
    budgets, keeps local shadows following the player, preserves the debug
    reporter, and checkpoints versioned 3D positions without misreading legacy
    2D coordinates. Device testing and profiling remain ongoing.
+9. **Adventure visual pass (integrated).** Greyfen and the three destination
+   towns now use denser clusters of complete premade GLB buildings with
+   regional palettes and props. Distant mountains, a Tidewatch coast,
+   Whisperwood density, Lower Ways rock gate, topographic map detail, and
+   first-person Three.js work scenes strengthen visual progression while the
+   activity renderer runs only when its panel is visible.
 
 ## Current working checkpoint
 
@@ -107,7 +115,8 @@ The hosted repo is intentionally small:
   coordinates start safely at Greyfen; marked positions round-trip through the
   v4/v20.x save bridge.
 - Automated coverage currently exercises save normalization, economy,
-  progression, card combat, world gates, shell wiring, and mobile budgets.
+  progression, card combat, world gates, shell wiring, mobile budgets, region
+  visual integration, first-person station scenes, and animated enemy models.
 
 ## Guardrails
 

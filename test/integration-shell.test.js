@@ -3,9 +3,12 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const root = new URL('../', import.meta.url);
-const [html, game] = await Promise.all([
+const [html, game, worldVisuals, activityVisuals, combatVisuals] = await Promise.all([
   readFile(new URL('index.html', root), 'utf8'),
-  readFile(new URL('game.js', root), 'utf8')
+  readFile(new URL('game.js', root), 'utf8'),
+  readFile(new URL('world-visuals.js', root), 'utf8'),
+  readFile(new URL('activity-visuals.js', root), 'utf8'),
+  readFile(new URL('combat-visuals.js', root), 'utf8')
 ]);
 
 test('hosted shell retains mobile navigation, camera direction, assets, roads, and debug report', () => {
@@ -21,7 +24,7 @@ test('hosted shell retains mobile navigation, camera direction, assets, roads, a
 test('migrated gameplay dock is loaded without replacing the Three.js runtime', () => {
   assert.match(html, /class="gameDock"/);
   assert.match(html, /id="gamePanel"/);
-  assert.match(html, /game\.js\?v=7/);
+  assert.match(html, /game\.js\?v=8/);
   assert.match(game, /createGameUI/);
   assert.match(game, /new THREE\.WebGLRenderer/);
   assert.match(game, /saveGameState/);
@@ -47,6 +50,21 @@ test('continuous overworld paints long routes and places complete landmark asset
   assert.match(game, /landmark\.building/);
   assert.match(game, /setLandmarkTarget/);
   assert.match(game, /Math\.abs\(x\)>WORLD_LIMIT/);
+});
+
+test('adventure visual layer uses complete building assets for distinct towns and richer map landmarks', () => {
+  assert.match(game, /createAdventureBackdrop/);
+  assert.match(game, /decorateAdventureWorld/);
+  assert.match(game, /drawAdventureMap/);
+  assert.match(worldVisuals, /TOWN_CLUSTERS/);
+  for (const town of ['town', 'frostmere', 'sunspire', 'tidewatch']) {
+    assert.match(worldVisuals, new RegExp(`${town}: Object\\.freeze`));
+  }
+  assert.match(worldVisuals, /assets\[key\]/);
+  assert.match(worldVisuals, /source\.clone\(true\)/);
+  assert.match(worldVisuals, /adventure-backdrop/);
+  assert.match(worldVisuals, /Northern mountain symbols/);
+  assert.match(worldVisuals, /Tidewatch sea and shoreline/);
 });
 
 test('3D travel checkpoints positions and starts preserved distance encounters', () => {
@@ -88,4 +106,37 @@ test('card combat overlay is wired to the preserved state machine and save path'
   assert.match(ui, /startExploreCombat/);
   assert.match(ui, /BREAK! Enemy intent cancelled/);
   assert.match(ui, /resumed compatible saved battle/);
+  assert.match(ui, /enemyFigureMarkup/);
+  assert.match(ui, /outroSnapshot/);
+  assert.match(ui, /fx-defeat/);
+});
+
+test('combat has four visible enemy silhouettes and mobile CSS animations', () => {
+  for (const enemy of ['scavenger', 'crawler', 'stonehorn', 'custodian']) {
+    assert.match(combatVisuals, new RegExp(`${enemy}:`));
+  }
+  assert.match(combatVisuals, /`enemy-\$\{id\}`/);
+  assert.match(combatVisuals, /enemyFigureMarkup/);
+  assert.match(combatVisuals, /playerWeaponMarkup/);
+  for (const animation of ['enemyIdle', 'enemyHit', 'enemyBreak', 'enemyAttack', 'enemyDefeat', 'heroStrike']) {
+    assert.match(html, new RegExp(`@keyframes ${animation}`));
+  }
+  assert.match(html, /combatArena\.area-forest/);
+  assert.match(html, /combatArena\.area-cave/);
+});
+
+test('work and forge panels expose mobile-budget first-person Three.js scenes', async () => {
+  assert.match(html, /id="activityStage"/);
+  assert.match(html, /id="activityCanvas"/);
+  assert.match(html, /Animated first-person work scene/);
+  assert.match(activityVisuals, /new THREE\.WebGLRenderer/);
+  assert.match(activityVisuals, /powerPreference: 'low-power'/);
+  for (const builder of ['buildMining', 'buildSmelting', 'buildTraining', 'buildForging']) {
+    assert.match(activityVisuals, new RegExp(`function ${builder}`));
+  }
+  const ui = await readFile(new URL('game-ui.js', root), 'utf8');
+  assert.match(ui, /createActivityVisuals/);
+  assert.match(ui, /activityVisuals\.show/);
+  assert.match(ui, /activityVisuals\.pulse/);
+  assert.match(ui, /activityVisuals\.destroy/);
 });

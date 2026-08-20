@@ -22,8 +22,9 @@ test('hosted overworld preserves all original named landmarks and connected rout
     'Whisperwood',
     'The Lower Ways'
   ]);
-  assert.equal(WORLD_ROUTES.length, 5);
+  assert.equal(WORLD_ROUTES.length, 11);
   assert.equal(WORLD_ROUTES.every(route => route.points.length >= 3), true);
+  assert.equal(WORLD_ROUTES.filter(route => /street|crossing/.test(route.id)).length, 6);
 });
 
 test('legacy map coordinates fall back safely while hosted positions round-trip', () => {
