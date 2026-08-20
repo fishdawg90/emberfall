@@ -1,0 +1,8 @@
+{
+  "name": "emberfall-hosted-migration",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}
