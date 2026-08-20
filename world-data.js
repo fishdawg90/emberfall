@@ -91,7 +91,13 @@ export const WORLD_ROUTES = Object.freeze([
   Object.freeze({ id: 'greyfen-east', width: 6, points: Object.freeze([[72, 32], [132, 20], [178, 5], [214, -7]]) }),
   Object.freeze({ id: 'whisperwood-road', width: 6, points: Object.freeze([[0, 126], [-55, 146], [-128, 170], [-203, 153]]) }),
   Object.freeze({ id: 'lower-ways-road', width: 6, points: Object.freeze([[0, 126], [68, 142], [139, 181], [203, 158]]) }),
-  Object.freeze({ id: 'tidewatch-road', width: 5.5, points: Object.freeze([[139, 181], [172, 215], [192, 249]]) })
+  Object.freeze({ id: 'tidewatch-road', width: 5.5, points: Object.freeze([[139, 181], [172, 215], [192, 249]]) }),
+  Object.freeze({ id: 'frostmere-street', width: 4.5, points: Object.freeze([[-258, -210], [-230, -210], [-202, -210]]) }),
+  Object.freeze({ id: 'frostmere-crossing', width: 4, points: Object.freeze([[-230, -236], [-230, -210], [-230, -184]]) }),
+  Object.freeze({ id: 'sunspire-street', width: 4.5, points: Object.freeze([[207, -20], [235, -20], [263, -20]]) }),
+  Object.freeze({ id: 'sunspire-crossing', width: 4, points: Object.freeze([[235, -46], [235, -20], [235, 6]]) }),
+  Object.freeze({ id: 'tidewatch-street', width: 4.5, points: Object.freeze([[182, 270], [210, 270], [238, 270]]) }),
+  Object.freeze({ id: 'tidewatch-crossing', width: 4, points: Object.freeze([[210, 244], [210, 270], [210, 296]]) })
 ]);
 
 const LANDMARK_BY_ID = new Map(WORLD_LANDMARKS.map(landmark => [landmark.id, landmark]));
