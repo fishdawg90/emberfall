@@ -58,6 +58,7 @@ The hosted repo is intentionally small:
 | Card combat | `EXPLORE_CARDS`, combat state, draw/discard/energy/break rules | UI overlay over the 3D scene; combat state remains renderer-independent | Full state machine, four visible enemies, first-person weapon, and mobile animations integrated |
 | XP and region progression | `gainHeroXp`, `winExploreCombat`, `regionWins`, `claimed` | Shared progression service used by world, work, and combat | Hero XP, rewards, boss claims, and Deepsteel unlock integrated |
 | Debug report | `EmberDebug` in hosted `index.html` | Keep the existing button/report and add state/world diagnostics | Preserved; extend |
+| Onboarding and gameplay cohesion | Original mode descriptions and progression prompts | One-screen intro plus renderer-independent journey objectives shared by HUD, world travel, work, combat, and town systems | Integrated |
 
 ## Incremental implementation sequence
 
@@ -105,6 +106,14 @@ The hosted repo is intentionally small:
    Whisperwood density, Lower Ways rock gate, topographic map detail, and
    first-person Three.js work scenes strengthen visual progression while the
    activity renderer runs only when its panel is visible.
+10. **Journey cohesion pass (integrated).** A quick first-launch intro explains
+    gather → refine → forge → venture → restore. A persistent objective
+    ribbon advances from the first iron weapon through town contracts, patrols,
+    guardians, deeper mine gates, and restoration. Workstations now include
+    environmental structure, props, light and particles; combat arenas include
+    regional scenery, impact feedback, and visible Tunnel Mauler, Glass Warden,
+    and Abyss Sentinel models. This also restores reachable named gates for the
+    higher metal tiers while retaining card combat and save compatibility.
 
 ## Current working checkpoint
 

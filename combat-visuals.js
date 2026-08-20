@@ -21,8 +21,25 @@ const FIGURES = Object.freeze({
     <i class="enemyPart custodianHead"></i><i class="enemyPart custodianCrown crownLeft"></i><i class="enemyPart custodianCrown crownRight"></i>
     <i class="enemyPart custodianArm custodianArmLeft"></i><i class="enemyPart custodianArm custodianArmRight"></i>
     <i class="enemyPart custodianHammerHead"></i><i class="enemyPart custodianHammerGrip"></i>
-    <i class="enemyPart custodianLeg custodianLegLeft"></i><i class="enemyPart custodianLeg custodianLegRight"></i>`
+    <i class="enemyPart custodianLeg custodianLegLeft"></i><i class="enemyPart custodianLeg custodianLegRight"></i>`,
+  tunnelmauler: `
+    <i class="enemyPart maulerBody"></i><i class="enemyPart maulerBack"></i><i class="enemyPart maulerPlate plateA"></i><i class="enemyPart maulerPlate plateB"></i><i class="enemyPart maulerPlate plateC"></i>
+    <i class="enemyPart maulerHead"></i><i class="enemyPart maulerJaw"></i><i class="enemyPart maulerEye"></i><i class="enemyPart maulerClaw clawLeft"></i><i class="enemyPart maulerClaw clawRight"></i>
+    <i class="enemyPart maulerLeg maulerLegA"></i><i class="enemyPart maulerLeg maulerLegB"></i><i class="enemyPart maulerLeg maulerLegC"></i><i class="enemyPart maulerLeg maulerLegD"></i>`,
+  glasswarden: `
+    <i class="enemyPart glassAura"></i><i class="enemyPart glassTorso"></i><i class="enemyPart glassCore"></i><i class="enemyPart glassHead"></i>
+    <i class="enemyPart glassShard glassCrownA"></i><i class="enemyPart glassShard glassCrownB"></i><i class="enemyPart glassShard glassShoulderA"></i><i class="enemyPart glassShard glassShoulderB"></i>
+    <i class="enemyPart glassArm glassArmA"></i><i class="enemyPart glassArm glassArmB"></i><i class="enemyPart glassLeg glassLegA"></i><i class="enemyPart glassLeg glassLegB"></i>`,
+  abysssentinel: `
+    <i class="enemyPart abyssHalo"></i><i class="enemyPart abyssCape"></i><i class="enemyPart abyssTorso"></i><i class="enemyPart abyssCore"></i><i class="enemyPart abyssHead"></i>
+    <i class="enemyPart abyssHorn abyssHornA"></i><i class="enemyPart abyssHorn abyssHornB"></i><i class="enemyPart abyssArm abyssArmA"></i><i class="enemyPart abyssArm abyssArmB"></i>
+    <i class="enemyPart abyssShard abyssShardA"></i><i class="enemyPart abyssShard abyssShardB"></i><i class="enemyPart abyssShard abyssShardC"></i>`
 });
+
+export function combatSceneryMarkup(area = 'world') {
+  const safeArea = ['world', 'forest', 'cave', 'town'].includes(area) ? area : 'world';
+  return `<div class="combatScenery scenery-${safeArea}" aria-hidden="true"><i class="sceneMist mistA"></i><i class="sceneMist mistB"></i><i class="sceneMountain mountainA"></i><i class="sceneMountain mountainB"></i><i class="sceneTree treeA"></i><i class="sceneTree treeB"></i><i class="sceneTree treeC"></i><i class="sceneCrystal crystalA"></i><i class="sceneCrystal crystalB"></i><i class="sceneLantern lanternA"></i><i class="sceneLantern lanternB"></i><i class="sceneSpark sparkA"></i><i class="sceneSpark sparkB"></i><i class="sceneSpark sparkC"></i><i class="sceneSpark sparkD"></i><i class="sceneRoad"></i></div>`;
+}
 
 export function enemyFigureMarkup(enemyId, { boss = false, broken = false, effect = '' } = {}) {
   const id = Object.hasOwn(FIGURES, enemyId) ? enemyId : 'scavenger';

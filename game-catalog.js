@@ -4,9 +4,9 @@
 
 export const METALS = Object.freeze([
   { id: 'iron', name: 'Iron', icon: '●', color: '#d59662', ore: 'Iron ore', bar: 'Iron bar', mine: 1, smelt: 1, oreV: 2, barV: 7, cost: 3, yield: [1, 3], place: 'Iron Mouth', desc: 'Upper mine · ordinary iron.', gate: null },
-  { id: 'deepsteel', name: 'Deepsteel', icon: '◆', color: '#77a9cf', ore: 'Deepsteel ore', bar: 'Deepsteel bar', mine: 5, smelt: 4, oreV: 7, barV: 25, cost: 3, yield: [1, 2], place: 'Flooded Galleries', desc: 'Blue ore below the old waterline.', gate: { name: 'Tunnel Mauler', hp: 48, atk: 7, coin: 35 } },
-  { id: 'starsilver', name: 'Star Silver', icon: '✦', color: '#b8a7ef', ore: 'Star-silver ore', bar: 'Star-silver bar', mine: 10, smelt: 8, oreV: 22, barV: 78, cost: 3, yield: [1, 2], place: 'Glass Veins', desc: 'Silver-violet seams behind black glass.', gate: { name: 'Glass Warden', hp: 88, atk: 11, coin: 110 } },
-  { id: 'aetherite', name: 'Aetherite', icon: '✧', color: '#f0c85e', ore: 'Aetherite shard', bar: 'Aetherite ingot', mine: 16, smelt: 13, oreV: 70, barV: 255, cost: 4, yield: [1, 1], place: 'The Buried Sky', desc: 'Gold-blue crystal under impossible darkness.', gate: { name: 'Abyss Sentinel', hp: 155, atk: 17, coin: 360 } }
+  { id: 'deepsteel', name: 'Deepsteel', icon: '◆', color: '#77a9cf', ore: 'Deepsteel ore', bar: 'Deepsteel bar', mine: 5, smelt: 4, oreV: 7, barV: 25, cost: 3, yield: [1, 2], place: 'Flooded Galleries', desc: 'Blue ore below the old waterline.', gate: { id: 'tunnelmauler', name: 'Tunnel Mauler', hp: 48, atk: 7, coin: 35 } },
+  { id: 'starsilver', name: 'Star Silver', icon: '✦', color: '#b8a7ef', ore: 'Star-silver ore', bar: 'Star-silver bar', mine: 10, smelt: 8, oreV: 22, barV: 78, cost: 3, yield: [1, 2], place: 'Glass Veins', desc: 'Silver-violet seams behind black glass.', gate: { id: 'glasswarden', name: 'Glass Warden', hp: 88, atk: 11, coin: 110 } },
+  { id: 'aetherite', name: 'Aetherite', icon: '✧', color: '#f0c85e', ore: 'Aetherite shard', bar: 'Aetherite ingot', mine: 16, smelt: 13, oreV: 70, barV: 255, cost: 4, yield: [1, 1], place: 'The Buried Sky', desc: 'Gold-blue crystal under impossible darkness.', gate: { id: 'abysssentinel', name: 'Abyss Sentinel', hp: 155, atk: 17, coin: 360 } }
 ]);
 
 export const RECIPES = Object.freeze([
@@ -70,7 +70,10 @@ export const EXPLORE_ENEMIES = Object.freeze({
   scavenger: { id: 'scavenger', name: 'Tunnel Scavenger', icon: '◖', hp: 24, guard: 5, dmg: 7, desc: 'Quick, brittle and eager to strike.' },
   stonehorn: { id: 'stonehorn', name: 'Stonehorn', icon: '◆', hp: 36, guard: 8, dmg: 10, desc: 'Slow armour with a punishing charge.' },
   crawler: { id: 'crawler', name: 'Glass Crawler', icon: '✣', hp: 29, guard: 6, dmg: 5, hits: 2, desc: 'A shard-backed thing that attacks twice.' },
-  custodian: { id: 'custodian', name: 'Buried Custodian', icon: '✦', hp: 52, guard: 10, dmg: 11, desc: 'The old gatekeeper at the end of the route.' }
+  custodian: { id: 'custodian', name: 'Buried Custodian', icon: '✦', hp: 52, guard: 10, dmg: 11, desc: 'The old gatekeeper at the end of the route.' },
+  tunnelmauler: { id: 'tunnelmauler', name: 'Tunnel Mauler', icon: '◆', hp: 48, guard: 10, dmg: 7, desc: 'A plated burrower blocking the flooded galleries.' },
+  glasswarden: { id: 'glasswarden', name: 'Glass Warden', icon: '✦', hp: 88, guard: 15, dmg: 11, desc: 'A crystalline keeper reflecting every careless strike.' },
+  abysssentinel: { id: 'abysssentinel', name: 'Abyss Sentinel', icon: '✧', hp: 155, guard: 22, dmg: 17, desc: 'The last watcher beneath an impossible sky.' }
 });
 
 export const EXPLORE_CARDS = Object.freeze({

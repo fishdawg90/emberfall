@@ -59,6 +59,26 @@ export function createActivityVisuals({ canvas, container, caption, getState, de
     group.add(mesh);
     return mesh;
   };
+  const sphere = (group, radius, position, material, scale = [1, 1, 1], segments = 10) => {
+    const mesh = new THREE.Mesh(new THREE.SphereGeometry(radius, segments, Math.max(6, Math.floor(segments * 0.7))), material);
+    mesh.position.set(...position);
+    mesh.scale.set(...scale);
+    group.add(mesh);
+    return mesh;
+  };
+  const particles = (group, count, color, volume, size = 0.035) => {
+    const positions = new Float32Array(count * 3);
+    for (let index = 0; index < count; index += 1) {
+      positions[index * 3] = (Math.random() - 0.5) * volume[0];
+      positions[index * 3 + 1] = Math.random() * volume[1] + volume[4];
+      positions[index * 3 + 2] = (Math.random() - 0.5) * volume[2] + volume[3];
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const points = new THREE.Points(geometry, new THREE.PointsMaterial({ color, size, transparent: true, opacity: 0.72, depthWrite: false, blending: THREE.AdditiveBlending }));
+    group.add(points);
+    return { points, floor: volume[4], ceiling: volume[4] + volume[1] };
+  };
   const floor = material => {
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(18, 20), material);
     mesh.rotation.x = -Math.PI / 2;
@@ -109,6 +129,20 @@ export function createActivityVisuals({ canvas, container, caption, getState, de
     fireBase = 1.9;
     fireLight.intensity = fireBase;
     caveShell();
+    const timber = standard(0x5b422c);
+    for (const z of [-4.15, -1.35]) {
+      box(environment, [0.34, 3.9, 0.34], [-2.85, 1.95, z], timber);
+      box(environment, [0.34, 3.9, 0.34], [2.85, 1.95, z], timber);
+      box(environment, [6.15, 0.34, 0.42], [0, 3.82, z], timber);
+    }
+    for (const side of [-0.62, 0.62]) box(environment, [0.12, 0.08, 9], [side, 0.11, -0.8], metal(0x62696b));
+    for (let index = 0; index < 9; index += 1) box(environment, [1.8, 0.09, 0.22], [0, 0.08, 2.5 - index * 0.82], timber);
+    const cart = new THREE.Group();
+    box(cart, [1.35, 0.62, 1.65], [-2.0, 0.58, -2.0], metal(0x485054), [0.08, 0, 0]);
+    for (const z of [-2.55, -1.45]) cylinder(cart, 0.24, 1.62, [-2.0, 0.24, z], metal(0x282e30), [0, 0, Math.PI / 2], 10);
+    environment.add(cart);
+    const lanternGlow = sphere(environment, 0.14, [2.15, 2.65, -3.95], emissive(0xffb356, 3.4), [1, 1.25, 1], 9);
+    box(environment, [0.45, 0.55, 0.35], [2.15, 2.66, -3.95], metal(0x3d4547, { transparent: true, opacity: 0.62 }));
     accentMaterial = emissive(0xd6975e, 1.45);
     for (let index = 0; index < 8; index += 1) {
       const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(0.22 + index % 3 * 0.07, 0), accentMaterial);
@@ -125,7 +159,7 @@ export function createActivityVisuals({ canvas, container, caption, getState, de
     tool.add(pick);
     hand(0.82, 0.36, 2.45, [0, 0, -0.26]);
     hand(0.48, 1.12, 2.43, [0, 0, -0.32]);
-    animated = { primary: pick, base: pick.rotation.clone(), impact: environment.children.at(-1) };
+    animated = { primary: pick, base: pick.rotation.clone(), impact: environment.children.at(-1), particles: particles(environment, mobile ? 16 : 28, 0xd6c6a4, [6.5, 3.4, 6, -2.1, 0.35]), particleSpeed: 0.0025, lanternGlow };
   }
 
   function buildSmelting() {
@@ -137,6 +171,15 @@ export function createActivityVisuals({ canvas, container, caption, getState, de
     box(environment, [9, 5, 0.7], [0, 2.5, -5], standard(0x45403a));
     box(environment, [3.8, 3.2, 1.8], [0, 1.55, -3.9], standard(0x3b3b3a));
     box(environment, [1.85, 1.65, 0.25], [0, 1.35, -2.95], emissive(0xff5d21, 3.6));
+    const brick = standard(0x5d4b40);
+    for (let row = 0; row < 4; row += 1) for (let column = -3; column <= 3; column += 1) box(environment, [0.62, 0.28, 0.42], [column * 0.66 + (row % 2) * 0.3, 0.28 + row * 0.3, -2.72], brick);
+    box(environment, [0.82, 3.2, 0.82], [1.45, 3.3, -4.1], standard(0x3c3b39));
+    box(environment, [2.2, 0.18, 0.72], [-2.4, 1.15, -3.05], standard(0x4c3828));
+    for (let index = 0; index < 3; index += 1) box(environment, [0.48, 0.16, 0.7], [-2.9 + index * 0.55, 1.33, -3.04], metal(0x555c5e));
+    const bellows = new THREE.Group();
+    sphere(bellows, 0.55, [2.45, 0.74, -2.65], standard(0x6d3e2e), [1.5, 0.65, 1.0], 10);
+    cylinder(bellows, 0.08, 1.3, [2.45, 0.8, -1.85], standard(0x765335), [Math.PI / 2, 0, 0], 8);
+    environment.add(bellows);
     for (let index = 0; index < 5; index += 1) {
       const bar = box(environment, [0.95, 0.18, 0.28], [-2.6 + index * 0.35, 0.17 + index * 0.13, -2.45], metal(0x737a7e), [0, index * 0.08, index * 0.05]);
       bar.rotation.y = 0.35;
@@ -150,7 +193,7 @@ export function createActivityVisuals({ canvas, container, caption, getState, de
     tongs.rotation.z = -0.42;
     tool.add(tongs);
     hand(0.96, 0.3, 2.65, [0, 0, -0.45]);
-    animated = { primary: tongs, secondary: crucible, glow: molten, base: tongs.rotation.clone() };
+    animated = { primary: tongs, secondary: crucible, glow: molten, base: tongs.rotation.clone(), particles: particles(environment, mobile ? 18 : 34, 0xff9a48, [2.0, 2.8, 1.4, -2.75, 0.9]), particleSpeed: 0.012 };
   }
 
   function buildTraining() {
@@ -161,6 +204,16 @@ export function createActivityVisuals({ canvas, container, caption, getState, de
     floor(standard(0x5d6d49));
     box(environment, [10, 0.35, 0.45], [0, 2.6, -5], standard(0x726048));
     for (let side = -3; side <= 3; side += 1.5) cylinder(environment, 0.08, 3, [side, 1.5, -4.9], standard(0x5c4632), [0, 0, 0], 7);
+    for (const side of [-1, 1]) {
+      box(environment, [0.12, 3.2, 0.12], [side * 2.6, 1.6, -4.45], standard(0x59412d));
+      box(environment, [1.05, 1.35, 0.08], [side * 2.6, 2.65, -4.38], standard(side < 0 ? 0x7b3435 : 0x355b72), [0, 0, side * 0.08]);
+    }
+    box(environment, [2.6, 0.18, 0.42], [-2.35, 1.45, -2.7], standard(0x4e3828), [0, -0.2, 0]);
+    for (let index = 0; index < 4; index += 1) cylinder(environment, 0.035, 1.5, [-3.15 + index * 0.42, 2.05, -2.68], metal(0x81898b), [0, 0, -0.18 + index * 0.1], 7);
+    for (const side of [-1, 1]) {
+      cylinder(environment, 0.42, 0.72, [side * 3.1, 0.36, -1.85], standard(0x6b4c32), [0, 0, 0], 12);
+      cylinder(environment, 0.44, 0.05, [side * 3.1, 0.72, -1.85], metal(0x5f6564), [0, 0, 0], 12);
+    }
     const dummy = new THREE.Group();
     cylinder(dummy, 0.16, 3.1, [0, 1.55, 0], standard(0x684a2f), [0, 0, 0], 8);
     cylinder(dummy, 0.23, 1.85, [0, 2.15, 0], standard(0x80613e), [0, 0, Math.PI / 2], 8);
@@ -176,7 +229,7 @@ export function createActivityVisuals({ canvas, container, caption, getState, de
     sword.rotation.set(0.05, -0.2, -0.48);
     tool.add(sword);
     hand(0.94, 0.28, 2.55, [0, 0, -0.3]);
-    animated = { primary: sword, target: dummy, base: sword.rotation.clone() };
+    animated = { primary: sword, target: dummy, base: sword.rotation.clone(), particles: particles(environment, mobile ? 10 : 18, 0xd8d1ad, [7, 2.3, 4.2, -2.2, 0.25]), particleSpeed: 0.0015 };
   }
 
   function buildForging() {
@@ -188,6 +241,16 @@ export function createActivityVisuals({ canvas, container, caption, getState, de
     box(environment, [9, 5, 0.7], [0, 2.5, -5], standard(0x48413a));
     box(environment, [2.4, 0.48, 1.15], [0, 1.03, -2.9], metal(0x555d60));
     box(environment, [1.15, 0.8, 0.75], [0, 0.47, -2.9], standard(0x34383a));
+    box(environment, [2.15, 2.65, 1.25], [2.65, 1.33, -3.82], standard(0x443d37));
+    box(environment, [1.25, 1.25, 0.2], [2.65, 1.25, -3.12], emissive(0xff5f27, 3.2));
+    box(environment, [1.05, 3.1, 1.0], [2.65, 3.95, -4.0], standard(0x393938));
+    box(environment, [3.0, 0.16, 0.68], [-2.4, 2.45, -4.12], standard(0x5a402d));
+    for (let index = 0; index < 5; index += 1) {
+      cylinder(environment, 0.035, 1.3 + index % 2 * 0.35, [-3.4 + index * 0.48, 1.75, -4.0], metal(0x747d80), [0, 0, -0.28 + index * 0.13], 7);
+      sphere(environment, 0.11 + index % 2 * 0.05, [-3.4 + index * 0.48, 1.11, -4.0], metal(0x666e70), [1.4, 0.7, 0.8], 8);
+    }
+    box(environment, [1.7, 0.62, 1.15], [-2.65, 0.42, -2.15], standard(0x3e4b4f));
+    box(environment, [1.48, 0.08, 0.94], [-2.65, 0.75, -2.15], new THREE.MeshStandardMaterial({ color: 0x315d69, roughness: 0.2, metalness: 0.15 }));
     accentMaterial = emissive(0xff7432, 2.7);
     const hotBar = box(environment, [1.35, 0.12, 0.28], [0, 1.34, -2.52], accentMaterial, [0.08, 0.12, 0]);
     const hammer = new THREE.Group();
@@ -203,7 +266,7 @@ export function createActivityVisuals({ canvas, container, caption, getState, de
     tongs.rotation.z = 0.62;
     tool.add(tongs);
     hand(-0.95, 0.27, 2.48, [0, 0, 0.42]);
-    animated = { primary: hammer, target: hotBar, base: hammer.rotation.clone() };
+    animated = { primary: hammer, target: hotBar, base: hammer.rotation.clone(), particles: particles(environment, mobile ? 22 : 42, 0xffa34e, [2.8, 2.5, 1.8, -2.55, 0.75]), particleSpeed: 0.016 };
   }
 
   function rebuild(nextMode) {
@@ -249,6 +312,15 @@ export function createActivityVisuals({ canvas, container, caption, getState, de
     }
     if (animated.target && mode === 'combat') animated.target.rotation.z = action ? Math.sin(cycle) * 0.025 : Math.sin(seconds) * 0.008;
     if (animated.glow) animated.glow.material.emissiveIntensity = 2 + Math.sin(seconds * 7) * 0.42;
+    if (animated.particles) {
+      const attribute = animated.particles.points.geometry.attributes.position;
+      for (let index = 0; index < attribute.count; index += 1) {
+        const next = attribute.getY(index) + animated.particleSpeed * (1 + index % 4) * (action ? 2.1 : 0.55);
+        attribute.setY(index, next > animated.particles.ceiling ? animated.particles.floor : next);
+      }
+      attribute.needsUpdate = true;
+      animated.particles.points.material.opacity = action ? 0.88 : 0.36;
+    }
     if (accentMaterial) accentMaterial.emissiveIntensity = Math.max(0.9, (accentMaterial.emissiveIntensity || 1.5) + Math.sin(seconds * 6.4) * 0.025);
     fireLight.intensity = fireBase * (1 + Math.sin(seconds * 8.2) * 0.08);
     camera.position.y = 1.62 + Math.sin(seconds * 1.8) * 0.012;

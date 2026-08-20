@@ -84,6 +84,10 @@ export function createFreshState() {
     forgeAnim: null,
     hero: { level: 1, xp: 0 },
     town: { forge: 1, smelter: 1, market: 1, inn: 0 },
+    journey: {
+      introSeen: false,
+      towns: { town: true, frostmere: false, sunspire: false, tidewatch: false }
+    },
     unifiedV20: true,
     explore: freshExplore()
   };
@@ -191,6 +195,11 @@ export function normalizeSave(raw) {
   merged.gear = normalizeGear(source.gear);
   merged.hero = { ...base.hero, ...objectOrEmpty(source.hero) };
   merged.town = { ...base.town, ...objectOrEmpty(source.town) };
+  merged.journey = {
+    ...base.journey,
+    ...objectOrEmpty(source.journey),
+    towns: { ...base.journey.towns, ...objectOrEmpty(source.journey?.towns) }
+  };
   merged.explore = normalizeExplore(source.explore, source);
   merged.forgeAnim = null;
 

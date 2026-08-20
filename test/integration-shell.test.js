@@ -24,7 +24,7 @@ test('hosted shell retains mobile navigation, camera direction, assets, roads, a
 test('migrated gameplay dock is loaded without replacing the Three.js runtime', () => {
   assert.match(html, /class="gameDock"/);
   assert.match(html, /id="gamePanel"/);
-  assert.match(html, /game\.js\?v=8/);
+  assert.match(html, /game\.js\?v=9/);
   assert.match(game, /createGameUI/);
   assert.match(game, /new THREE\.WebGLRenderer/);
   assert.match(game, /saveGameState/);
@@ -111,8 +111,8 @@ test('card combat overlay is wired to the preserved state machine and save path'
   assert.match(ui, /fx-defeat/);
 });
 
-test('combat has four visible enemy silhouettes and mobile CSS animations', () => {
-  for (const enemy of ['scavenger', 'crawler', 'stonehorn', 'custodian']) {
+test('combat has visible patrol and mine-gate enemies with mobile CSS animations', () => {
+  for (const enemy of ['scavenger', 'crawler', 'stonehorn', 'custodian', 'tunnelmauler', 'glasswarden', 'abysssentinel']) {
     assert.match(combatVisuals, new RegExp(`${enemy}:`));
   }
   assert.match(combatVisuals, /`enemy-\$\{id\}`/);
@@ -123,6 +123,8 @@ test('combat has four visible enemy silhouettes and mobile CSS animations', () =
   }
   assert.match(html, /combatArena\.area-forest/);
   assert.match(html, /combatArena\.area-cave/);
+  assert.match(combatVisuals, /combatSceneryMarkup/);
+  assert.match(html, /combatImpact/);
 });
 
 test('work and forge panels expose mobile-budget first-person Three.js scenes', async () => {
@@ -139,4 +141,19 @@ test('work and forge panels expose mobile-budget first-person Three.js scenes', 
   assert.match(ui, /activityVisuals\.show/);
   assert.match(ui, /activityVisuals\.pulse/);
   assert.match(ui, /activityVisuals\.destroy/);
+});
+
+test('quick intro and persistent journey objective connect the full gameplay loop', async () => {
+  const ui = await readFile(new URL('game-ui.js', root), 'utf8');
+  const journey = await readFile(new URL('journey-services.js', root), 'utf8');
+  assert.match(html, /id="introOverlay"/);
+  assert.match(html, /Rebuild the town\. Forge the road ahead/);
+  assert.match(html, /id="journeyHud"/);
+  assert.match(ui, /class="systemThread"/);
+  assert.match(ui, /getJourneyObjective/);
+  assert.match(ui, /challenge-gate/);
+  assert.match(game, /recordTownArrival/);
+  assert.match(game, /journeyWorldAction/);
+  assert.match(journey, /visit-frostmere/);
+  assert.match(journey, /patrol-cave/);
 });

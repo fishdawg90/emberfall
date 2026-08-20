@@ -12,6 +12,7 @@ import {
   getTownCost,
   restoreTown,
   runWorkCycle,
+  selectMineDepth,
   sellGear,
   sellMaterial,
   simulateOfflineWork,
@@ -97,6 +98,15 @@ test('smelting consumes ore, produces bars, and stops cleanly when ore runs out'
   assert.equal(second.ok, false);
   assert.equal(second.code, 'ore-required');
   assert.equal(state.running, false);
+});
+
+test('opened mine depths still enforce the original mining level requirement', () => {
+  const state = createFreshState();
+  state.open = 1;
+  assert.equal(selectMineDepth(state, 1).code, 'skill-required');
+  state.skills.mining.l = 5;
+  assert.equal(selectMineDepth(state, 1).ok, true);
+  assert.equal(state.depth, 1);
 });
 
 test('offline work uses the original cycle duration and capped cycle simulation', () => {

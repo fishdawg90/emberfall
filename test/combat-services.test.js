@@ -139,3 +139,26 @@ test('defeat returns the hero to Greyfen with restored expedition HP', () => {
   assert.deepEqual(state.explore.townPos, [0, 12.4]);
   assert.equal(state.explore.hp, state.explore.maxHp);
 });
+
+test('mine gate battles use their named enemy and unlock the next depth', () => {
+  const state = createFreshState();
+  const started = startExploreCombat(state, {
+    boss: true,
+    enemyId: 'glasswarden',
+    gateDepth: 2,
+    origin: { area: 'cave', pos: [0, 0], yaw: 0, z: 0 },
+    random: () => 0
+  });
+  assert.equal(started.enemy.name, 'Glass Warden');
+  assert.equal(started.combat.maxHp, 88);
+  started.combat.hp = 1;
+  started.combat.guard = 0;
+  started.combat.broken = true;
+  started.combat.hand = ['slash'];
+  started.combat.energy = 3;
+  const result = playExploreCard(state, 0, { random: () => 0 });
+  assert.equal(result.victory, true);
+  assert.equal(state.open, 2);
+  assert.equal(state.explore.pending.type, 'depth-opened');
+  assert.equal(result.coins, 110);
+});

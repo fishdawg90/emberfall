@@ -1,7 +1,8 @@
 import { ACTIVITIES, EQUIPMENT_SLOTS, METALS, RECIPES, TOWN_PROJECTS, UPGRADES } from './game-catalog.js';
 import { endExploreTurn, getCombatView, playExploreCard, startExploreCombat } from './combat-services.js';
 import { createActivityVisuals } from './activity-visuals.js';
-import { enemyFigureMarkup, playerWeaponMarkup } from './combat-visuals.js';
+import { combatSceneryMarkup, enemyFigureMarkup, playerWeaponMarkup } from './combat-visuals.js';
+import { getJourneyObjective } from './journey-services.js';
 import {
   buyUpgrade,
   equipItem,
@@ -48,13 +49,20 @@ function button(label, action, value = '', disabled = false, className = '') {
   return `<button class="${className}" data-action="${action}" data-value="${escapeHtml(value)}" ${disabled ? 'disabled' : ''}>${label}</button>`;
 }
 
-export function createGameUI({ getState, commit, debug = window.EmberDebug }) {
+export function createGameUI({ getState, commit, onJourneyAction = () => false, debug = window.EmberDebug }) {
   const panel = document.getElementById('gamePanel');
   const body = document.getElementById('gamePanelBody');
   const title = document.getElementById('gamePanelTitle');
   const toast = document.getElementById('gameToast');
   const hud = document.getElementById('gameMenuButton');
   const combatPanel = document.getElementById('combatPanel');
+  const journeyHud = document.getElementById('journeyHud');
+  const journeyIcon = document.getElementById('journeyIcon');
+  const journeyChapter = document.getElementById('journeyChapter');
+  const journeyTitle = document.getElementById('journeyTitle');
+  const journeyDetail = document.getElementById('journeyDetail');
+  const journeyGo = document.getElementById('journeyGo');
+  const introOverlay = document.getElementById('introOverlay');
   const activityVisuals = createActivityVisuals({
     canvas: document.getElementById('activityCanvas'),
     container: document.getElementById('activityStage'),
@@ -66,16 +74,17 @@ export function createGameUI({ getState, commit, debug = window.EmberDebug }) {
   let forgeMetal = METALS.find(metal => metal.id === RECIPES.find(recipe => recipe.id === getState().selectedRecipe)?.m)?.id || 'iron';
   let toastTimer = 0;
   let lastTick = performance.now();
-  let combatFx = { enemy: '', player: '', weapon: '' };
+  let combatFx = { enemy: '', player: '', weapon: '', impact: '' };
   let combatFxTimer = 0;
   let combatOutro = null;
+  let currentObjective = null;
 
-  function showCombatEffect({ enemy = '', player = '', weapon = '', outro = null, duration = 560 } = {}) {
-    combatFx = { enemy, player, weapon };
+  function showCombatEffect({ enemy = '', player = '', weapon = '', impact = '', outro = null, duration = 560 } = {}) {
+    combatFx = { enemy, player, weapon, impact };
     if (outro) combatOutro = outro;
     clearTimeout(combatFxTimer);
     combatFxTimer = setTimeout(() => {
-      combatFx = { enemy: '', player: '', weapon: '' };
+      combatFx = { enemy: '', player: '', weapon: '', impact: '' };
       if (outro) combatOutro = null;
       renderCombat();
     }, duration);
@@ -123,6 +132,47 @@ export function createGameUI({ getState, commit, debug = window.EmberDebug }) {
     const heroLevel = state.hero?.level || 1;
     hud.innerHTML = `<span>${Number(state.coins || 0).toLocaleString()}c</span><i>Hero ${heroLevel}</i>${state.explore?.combat ? '<b>BATTLE</b>' : state.running ? '<b>ACTIVE</b>' : ''}`;
     document.querySelectorAll('[data-open-game-tab]').forEach(element => element.classList.toggle('running', element.dataset.openGameTab === 'work' && state.running));
+    renderJourney();
+  }
+
+  function renderJourney() {
+    currentObjective = getJourneyObjective(getState());
+    if (!journeyHud || !currentObjective) return;
+    journeyIcon.textContent = currentObjective.icon;
+    journeyChapter.textContent = currentObjective.chapter;
+    journeyTitle.textContent = currentObjective.title;
+    journeyDetail.textContent = currentObjective.detail;
+    journeyGo.textContent = currentObjective.button;
+    journeyHud.dataset.objective = currentObjective.id;
+  }
+
+  function loopRibbon() {
+    const stages = [
+      ['work', '⛏', 'Work'],
+      ['forge', '⚒', 'Forge'],
+      ['gear', '⚔', 'Equip'],
+      ['world', '◆', 'Explore'],
+      ['town', '⌂', 'Restore']
+    ];
+    return `<nav class="systemThread" aria-label="Core game loop">${stages.map(([tab, icon, label]) => `<button class="${tab === activeTab || tab === 'town' && activeTab === 'market' ? 'active' : ''}" data-action="loop-tab" data-value="${tab}"><i>${icon}</i>${label}</button>`).join('')}</nav>`;
+  }
+
+  function showIntro(force = false) {
+    if (!introOverlay || getState().explore?.combat || (!force && getState().journey?.introSeen)) return false;
+    close();
+    introOverlay.classList.add('show');
+    introOverlay.setAttribute('aria-hidden', 'false');
+    return true;
+  }
+
+  function hideIntro(save = false) {
+    if (!introOverlay) return;
+    introOverlay.classList.remove('show');
+    introOverlay.setAttribute('aria-hidden', 'true');
+    if (save && !getState().journey?.introSeen) {
+      getState().journey.introSeen = true;
+      commitAction('complete quick introduction');
+    }
   }
 
   function skillStrip(id) {
@@ -182,6 +232,10 @@ export function createGameUI({ getState, commit, debug = window.EmberDebug }) {
       const available = upgrade.currency === 'coin' ? state.coins : state.skills[state.active].s;
       return `<div class="serviceRow"><div><strong>${upgrade.name} <em>${rank}/${upgrade.cap}</em></strong><small>${upgrade.desc}</small></div>${button(maxed ? 'MAX' : `${cost} ${upgrade.currency}`, 'buy-upgrade', id, maxed || available < cost)}</div>`;
     }).join('');
+    const nextDepth = Math.min(METALS.length - 1, state.open + 1);
+    const gateMetal = state.open < METALS.length - 1 ? METALS[nextDepth] : null;
+    const gateReady = gateMetal && state.skills.mining.l >= gateMetal.mine;
+    const gateCard = gateMetal && state.active === 'mining' ? `<section class="gameCard gateCard"><small>NEXT MINE DEPTH</small><strong>${gateMetal.icon} ${gateMetal.place}</strong><p>${gateMetal.gate.name} guards ${gateMetal.name}. Reach Mining Lv ${gateMetal.mine}, then win a card battle to open the seam.</p>${button(gateReady ? `Challenge ${gateMetal.gate.name}` : `Mining Lv ${state.skills.mining.l}/${gateMetal.mine}`, 'challenge-gate', nextDepth, !gateReady, gateReady ? 'primary' : '')}</section>` : '';
 
     return `<div class="activityGrid">${activityButtons}</div>
       <section class="gameCard heroCard" style="--metal:${material.color}">
@@ -195,8 +249,9 @@ export function createGameUI({ getState, commit, debug = window.EmberDebug }) {
       </section>
       ${selectors}
       ${skillStrip(state.active)}
+      ${gateCard}
       <h3 class="sectionTitle">${activity.name} upgrades</h3>
-      <div class="serviceList">${upgrades}</div>`;
+      <div class="serviceList">${upgrades}</div><div class="loopCallout"><b>Why this matters:</b> mine ore, smelt it into bars, then forge gear for the expedition deck. Production keeps running while you walk the world.</div>`;
   }
 
   function renderForge() {
@@ -211,7 +266,7 @@ export function createGameUI({ getState, commit, debug = window.EmberDebug }) {
         ${button(locked ? `Lv ${recipe.req}` : `${recipe.bars} bars`, 'forge', recipe.id, locked || short, 'forgeButton')}
       </div>`;
     }).join('');
-    return `${skillStrip('forging')}<div class="choiceRow metalTabs">${metalChoices}</div><div class="recipeList">${recipes}</div>`;
+    return `${skillStrip('forging')}<div class="choiceRow metalTabs">${metalChoices}</div><div class="recipeList">${recipes}</div><div class="loopCallout"><b>Gear changes combat:</b> weapons add stronger attack cards; armour raises expedition health and improves Block.</div>`;
   }
 
   function renderGear() {
@@ -224,7 +279,7 @@ export function createGameUI({ getState, commit, debug = window.EmberDebug }) {
     const inventory = state.gear.length
       ? [...state.gear].reverse().map(item => `<div class="inventoryCard ${state.eq[item.type] === item.id ? 'equipped' : ''}"><div><small>${escapeHtml(item.q || 'Standard')} · ${escapeHtml(item.type)}</small><strong>${escapeHtml(item.name)}</strong><span>${statText(item)} · ${item.val}c</span></div>${button(state.eq[item.type] === item.id ? 'Equipped' : 'Equip', 'equip', item.id, state.eq[item.type] === item.id)}</div>`).join('')
       : '<div class="emptyState">Forge equipment at Greyfen’s Smithy to build your loadout.</div>';
-    return `<div class="combatTotals"><span><small>ATTACK</small><b>${equipment.atk}</b></span><span><small>DEFENCE</small><b>${equipment.def}</b></span></div><h3 class="sectionTitle">Equipped</h3><div class="slotGrid">${slots}</div><h3 class="sectionTitle">Inventory</h3><div class="inventoryList">${inventory}</div>`;
+    return `<div class="combatTotals"><span><small>ATTACK</small><b>${equipment.atk}</b></span><span><small>DEFENCE</small><b>${equipment.def}</b></span></div><div class="loopCallout"><b>Your loadout is your deck:</b> better weapons replace basic attacks, while defence adds health and stronger guard values.</div><h3 class="sectionTitle">Equipped</h3><div class="slotGrid">${slots}</div><h3 class="sectionTitle">Inventory</h3><div class="inventoryList">${inventory}</div>`;
   }
 
   function renderTown() {
@@ -235,7 +290,7 @@ export function createGameUI({ getState, commit, debug = window.EmberDebug }) {
       const cost = getTownCost(state, id);
       return `<div class="townCard"><div class="townLevel"><i style="width:${level / project.max * 100}%"></i></div><div><small>LEVEL ${level}/${project.max}</small><strong>${project.name}</strong><span>${project.desc}</span></div>${button(maxed ? 'Restored' : `${cost} coin`, 'restore', id, maxed || state.coins < cost, maxed ? '' : 'primary')}</div>`;
     }).join('');
-    return `<div class="townIntro"><small>GREYFEN RESTORATION</small><h3>Bring the town back to life</h3><p>Every project uses the original persistent town levels and directly improves production, forging, trading, or expedition health.</p></div><div class="townList">${projects}</div>`;
+    return `<div class="townIntro"><small>GREYFEN RESTORATION</small><h3>Bring the town back to life</h3><p>Coin earned through trade, town contracts and battles permanently strengthens every part of the loop.</p></div><div class="townList">${projects}</div>`;
   }
 
   function renderMarket() {
@@ -243,7 +298,7 @@ export function createGameUI({ getState, commit, debug = window.EmberDebug }) {
     const materials = getMaterialRows(state).filter(row => row.tier <= state.open).map(row => `<div class="marketRow" style="--metal:${row.metal.color}"><i>${row.metal.icon}</i><div><strong>${row.name}</strong><span>${row.count} owned · ${row.value}c each</span></div>${button('Sell 1', 'sell-material', `${row.key}|${row.value}|1`, row.count < 1)}${button('All', 'sell-material', `${row.key}|${row.value}|all`, row.count < 1)}</div>`).join('');
     const gear = state.gear.filter(item => !Object.values(state.eq).includes(item.id)).map(item => `<div class="marketRow"><i>⚒</i><div><strong>${escapeHtml(item.name)}</strong><span>${statText(item)} · ${item.val}c base</span></div>${button('Sell', 'sell-gear', item.id)}</div>`).join('');
     const marketMultiplier = 1 + (Math.max(1, getTownLevel(state, 'market')) - 1) * 0.05;
-    return `<div class="marketBanner">Market Lv ${getTownLevel(state, 'market')} <span>Sale prices ×${marketMultiplier.toFixed(2)}</span></div><h3 class="sectionTitle">Materials</h3><div class="marketList">${materials}</div><h3 class="sectionTitle">Spare equipment</h3><div class="marketList">${gear || '<div class="emptyState">No unequipped gear to sell.</div>'}</div>`;
+    return `<div class="marketBanner">Market Lv ${getTownLevel(state, 'market')} <span>Sale prices ×${marketMultiplier.toFixed(2)}</span></div><div class="loopCallout"><b>Trade with a purpose:</b> sell surplus ore, bars and old gear to fund visible Greyfen restoration projects.</div><h3 class="sectionTitle">Materials</h3><div class="marketList">${materials}</div><h3 class="sectionTitle">Spare equipment</h3><div class="marketList">${gear || '<div class="emptyState">No unequipped gear to sell.</div>'}</div>`;
   }
 
   function renderCombat() {
@@ -274,7 +329,7 @@ export function createGameUI({ getState, commit, debug = window.EmberDebug }) {
     const area = ['forest', 'cave', 'town', 'world'].includes(combat.origin?.area) ? combat.origin.area : 'world';
     const enemyFigure = enemyFigureMarkup(enemy.id, { boss: combat.boss, broken: combat.broken, effect: combatFx.enemy });
     const weaponFigure = playerWeaponMarkup({ effect: combatFx.weapon, defeated: combatOutro?.type === 'defeat' });
-    combatPanel.innerHTML = `<div class="combatTop"><div class="combatEnemy"><div class="combatEnemyHead"><strong>${combat.boss ? '☇ ' : ''}${enemy.name}</strong><span>${combat.hp}/${combat.maxHp} HP</span></div><div class="combatBars"><div class="combatBar hp"><i style="width:${enemyHp}%"></i><em>HEALTH</em></div><div class="combatBar guard"><i style="width:${guard}%"></i><em>${combat.broken ? 'BROKEN' : `${combat.guard}/${combat.guardMax} BREAK GUARD`}</em></div></div></div><div class="combatIntent"><small>${outro ? 'RESULT' : 'INTENT'}</small><strong>${outro ? (combatOutro.type === 'victory' ? 'Defeated' : 'Overwhelmed') : combat.broken ? 'Staggered' : intent.name}</strong><span>${outro ? (combatOutro.type === 'victory' ? 'Rewards secured' : 'Returning to Greyfen') : combat.broken ? 'Attack cancelled' : intent.text}</span></div></div><div class="combatArena area-${area} ${combatFx.player}">${enemyFigure}${weaponFigure}</div><div class="combatBottom"><div class="combatPlayer"><div class="combatPlayerCard"><div class="combatPlayerHead"><strong>Hero · Turn ${combat.turn}</strong><span>${currentPlayerHp}/${expeditionMaxHp} HP${combat.block ? ` · ${combat.block} Block` : ''}</span></div><div class="combatBar player"><i style="width:${playerHp}%"></i><em>EXPEDITION HEALTH</em></div></div><div class="combatEnergy"><b>${combat.energy}</b> ENERGY</div></div><div class="combatLog">${escapeHtml(combat.log)}</div><div class="combatHand">${hand}</div><button class="combatEnd" data-combat-end ${outro || combat.resolving ? 'disabled' : ''}>${outro ? 'Resolving battle…' : 'End turn · enemy acts'}</button></div>`;
+    combatPanel.innerHTML = `<div class="combatTop"><div class="combatEnemy"><div class="combatEnemyHead"><strong>${combat.boss ? '☇ ' : ''}${enemy.name}</strong><span>${combat.hp}/${combat.maxHp} HP</span></div><div class="combatBars"><div class="combatBar hp"><i style="width:${enemyHp}%"></i><em>HEALTH</em></div><div class="combatBar guard"><i style="width:${guard}%"></i><em>${combat.broken ? 'BROKEN' : `${combat.guard}/${combat.guardMax} BREAK GUARD`}</em></div></div></div><div class="combatIntent"><small>${outro ? 'RESULT' : 'INTENT'}</small><strong>${outro ? (combatOutro.type === 'victory' ? 'Defeated' : 'Overwhelmed') : combat.broken ? 'Staggered' : intent.name}</strong><span>${outro ? (combatOutro.type === 'victory' ? 'Rewards secured' : 'Returning to Greyfen') : combat.broken ? 'Attack cancelled' : intent.text}</span></div></div><div class="combatArena area-${area} ${combatFx.player}">${combatSceneryMarkup(area)}${enemyFigure}${weaponFigure}${combatFx.impact ? `<strong class="combatImpact">${escapeHtml(combatFx.impact)}</strong>` : ''}</div><div class="combatBottom"><div class="combatPlayer"><div class="combatPlayerCard"><div class="combatPlayerHead"><strong>Hero · Turn ${combat.turn}</strong><span>${currentPlayerHp}/${expeditionMaxHp} HP${combat.block ? ` · ${combat.block} Block` : ''}</span></div><div class="combatBar player"><i style="width:${playerHp}%"></i><em>EXPEDITION HEALTH</em></div></div><div class="combatEnergy"><b>${combat.energy}</b> ENERGY</div></div><div class="combatLog">${escapeHtml(combat.log)}${state.explore.encounters < 2 ? '<small>Break the blue guard to cancel the shown enemy intent.</small>' : ''}</div><div class="combatHand">${hand}</div><button class="combatEnd" data-combat-end ${outro || combat.resolving ? 'disabled' : ''}>${outro ? 'Resolving battle…' : 'End turn · enemy acts'}</button></div>`;
     combatPanel.classList.add('show');
     combatPanel.setAttribute('aria-hidden', 'false');
   }
@@ -284,7 +339,7 @@ export function createGameUI({ getState, commit, debug = window.EmberDebug }) {
     const renderers = { work: renderWork, forge: renderForge, gear: renderGear, town: renderTown, market: renderMarket };
     title.textContent = TAB_LABELS[activeTab];
     document.querySelectorAll('[data-game-tab]').forEach(element => element.classList.toggle('active', element.dataset.gameTab === activeTab));
-    body.innerHTML = renderers[activeTab]();
+    body.innerHTML = loopRibbon() + renderers[activeTab]();
     updateLiveIndicators();
     syncActivityVisuals();
     if (preserveScroll) body.scrollTop = scrollTop;
@@ -328,6 +383,11 @@ export function createGameUI({ getState, commit, debug = window.EmberDebug }) {
 
   function onAction(action, rawValue) {
     const state = getState();
+    if (action === 'loop-tab') {
+      if (rawValue === 'world') close();
+      else open(rawValue);
+      return true;
+    }
     if (action === 'select-activity') return applyResult(selectActivity(state, rawValue), 'select activity');
     if (action === 'select-depth') return applyResult(selectMineDepth(state, Number(rawValue)), 'select mine depth');
     if (action === 'select-smelt') return applyResult(selectSmeltMetal(state, rawValue), 'select smelting metal');
@@ -355,6 +415,17 @@ export function createGameUI({ getState, commit, debug = window.EmberDebug }) {
       activityVisuals.pulse(720);
       return applyResult(forgeItem(state, rawValue), `forge ${rawValue}`, result => result.quality === 'Masterwork' ? `Masterwork! ${result.item.name}` : `${result.item.name} forged`);
     }
+    if (action === 'challenge-gate') {
+      const depth = Number(rawValue);
+      const metal = METALS[depth];
+      if (!metal?.gate) return notify('That mine gate is not available.', 'bad');
+      return startEncounter({
+        boss: true,
+        enemyId: metal.gate.id,
+        gateDepth: depth,
+        origin: { area: 'cave', pos: [...(state.explore.worldPos || [0, 0])], yaw: 0, z: 0 }
+      }).ok;
+    }
     if (action === 'equip') {
       const item = state.gear.find(entry => entry.id === Number(rawValue));
       return applyResult(equipItem(state, item?.type, Number(rawValue)), `equip ${rawValue}`, item ? `${item.name} equipped` : null);
@@ -370,6 +441,23 @@ export function createGameUI({ getState, commit, debug = window.EmberDebug }) {
   }
 
   document.querySelectorAll('[data-open-game-tab]').forEach(element => element.addEventListener('click', () => open(element.dataset.openGameTab)));
+  journeyGo?.addEventListener('click', () => {
+    const goal = currentObjective || getJourneyObjective(getState());
+    if (!goal || getState().explore?.combat) return;
+    if (goal.activity && getState().active !== goal.activity) {
+      const result = selectActivity(getState(), goal.activity);
+      if (result.ok) commitAction(`journey selects ${goal.activity}`);
+    }
+    if (goal.metalId) forgeMetal = goal.metalId;
+    if (goal.gateDepth) return onAction('challenge-gate', goal.gateDepth);
+    if (goal.landmarkId) {
+      close();
+      return onJourneyAction(goal);
+    }
+    if (goal.tab) open(goal.tab);
+  });
+  document.getElementById('journeyHelp')?.addEventListener('click', () => showIntro(true));
+  document.getElementById('introBegin')?.addEventListener('click', () => hideIntro(true));
   document.getElementById('gamePanelClose').addEventListener('click', close);
   document.getElementById('gamePanelTabs').addEventListener('click', event => {
     const tab = event.target.closest('[data-game-tab]');
@@ -386,9 +474,9 @@ export function createGameUI({ getState, commit, debug = window.EmberDebug }) {
       const result = playExploreCard(getState(), Number(card.dataset.combatCard));
       if (!result.ok) return notify(result.message, 'bad');
       if (result.victory && viewBefore) {
-        showCombatEffect({ enemy: 'fx-defeat', weapon: 'hero-strike', duration: 780, outro: outroSnapshot(viewBefore, { type: 'victory', log: `${result.enemy.name} falls. The road is clear.` }) });
-      } else if (result.justBroken) showCombatEffect({ enemy: 'fx-break', weapon: 'hero-strike', duration: 620 });
-      else if (result.damage) showCombatEffect({ enemy: 'fx-hit', weapon: 'hero-strike', duration: 460 });
+        showCombatEffect({ enemy: 'fx-defeat', weapon: 'hero-strike', impact: 'VICTORY', duration: 980, outro: outroSnapshot(viewBefore, { type: 'victory', log: `${result.enemy.name} falls. The road is clear.` }) });
+      } else if (result.justBroken) showCombatEffect({ enemy: 'fx-break', weapon: 'hero-strike', impact: 'BREAK', duration: 620 });
+      else if (result.damage) showCombatEffect({ enemy: 'fx-hit', weapon: 'hero-strike', impact: `-${result.damage}`, duration: 460 });
       commitAction(`play combat card ${result.cardId}`);
       if (result.victory) notify(`${result.enemy.name} defeated · +${result.coins}c · +${result.xp} XP`, 'gold');
       else if (result.justBroken) notify('BREAK! Enemy intent cancelled.', 'gold');
@@ -400,9 +488,9 @@ export function createGameUI({ getState, commit, debug = window.EmberDebug }) {
       const result = endExploreTurn(getState());
       if (!result.ok) return notify(result.message, 'bad');
       if (result.defeat && viewBefore) {
-        showCombatEffect({ enemy: 'fx-attack', player: 'player-hit', weapon: 'player-hit', duration: 720, outro: outroSnapshot(viewBefore, { type: 'defeat', log: 'The hero is overwhelmed and retreats to Greyfen.' }) });
-      } else if (result.staggered) showCombatEffect({ enemy: 'fx-break', duration: 580 });
-      else showCombatEffect({ enemy: 'fx-attack', player: result.taken ? 'player-hit' : '', weapon: result.taken ? 'player-hit' : '', duration: 580 });
+        showCombatEffect({ enemy: 'fx-attack', player: 'player-hit', weapon: 'player-hit', impact: 'DEFEAT', duration: 820, outro: outroSnapshot(viewBefore, { type: 'defeat', log: 'The hero is overwhelmed and retreats to Greyfen.' }) });
+      } else if (result.staggered) showCombatEffect({ enemy: 'fx-break', impact: 'STAGGER', duration: 580 });
+      else showCombatEffect({ enemy: 'fx-attack', player: result.taken ? 'player-hit' : '', weapon: result.taken ? 'player-hit' : '', impact: result.taken ? `-${result.taken}` : 'BLOCK', duration: 580 });
       commitAction('resolve enemy combat turn');
       if (result.defeat) notify('You were forced back to Greyfen.', 'bad');
       else if (result.staggered) notify('Enemy staggered · attack cancelled', 'gold');
@@ -460,11 +548,11 @@ export function createGameUI({ getState, commit, debug = window.EmberDebug }) {
       return result;
     }
     combatOutro = null;
-    combatFx = { enemy: '', player: '', weapon: '' };
+    combatFx = { enemy: '', player: '', weapon: '', impact: '' };
     clearTimeout(combatFxTimer);
     commitAction(options.boss ? 'start boss combat' : 'start travel combat');
     debug?.log('COMBAT', 'battle started', result.enemy.id, { boss: Boolean(options.boss) });
     return result;
   }
-  return { open, close, render, notify, startEncounter, destroy: () => { clearInterval(timer); clearTimeout(combatFxTimer); activityVisuals.destroy(); } };
+  return { open, close, render, renderJourney, notify, startEncounter, showIntro, maybeShowIntro: () => showIntro(false), destroy: () => { clearInterval(timer); clearTimeout(combatFxTimer); activityVisuals.destroy(); } };
 }

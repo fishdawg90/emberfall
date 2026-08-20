@@ -1,4 +1,4 @@
-import { EXPLORE_CARDS, EXPLORE_ENEMIES, RECIPES } from './game-catalog.js';
+import { EXPLORE_CARDS, EXPLORE_ENEMIES, METALS, RECIPES } from './game-catalog.js';
 import { addHeroXp, getEquipment } from './gameplay-services.js';
 
 function fail(code, message, extra = {}) {
@@ -95,7 +95,22 @@ export function getEnemyIntent(state, combat = state.explore?.combat) {
   if (!combat) return null;
   const enemy = EXPLORE_ENEMIES[combat.enemyId];
   if (!enemy) return null;
-  const scale = 1 + state.explore.step * 0.08 + (combat.boss ? 0.12 : 0);
+  const scale = combat.gateDepth ? 1 : 1 + state.explore.step * 0.08 + (combat.boss ? 0.12 : 0);
+  if (combat.enemyId === 'tunnelmauler') {
+    const heavy = combat.turn % 2 === 0;
+    const dmg = Math.round((heavy ? enemy.dmg + 3 : enemy.dmg) * scale);
+    return { name: heavy ? 'Tunnel Charge' : 'Rending Claw', dmg, hits: 1, text: `${dmg} damage` };
+  }
+  if (combat.enemyId === 'glasswarden') {
+    const split = combat.turn % 3 === 0;
+    const dmg = Math.round((split ? enemy.dmg - 3 : enemy.dmg) * scale);
+    return { name: split ? 'Prism Volley' : 'Glass Edge', dmg, hits: split ? 2 : 1, text: split ? `${dmg} × 2 damage` : `${dmg} damage` };
+  }
+  if (combat.enemyId === 'abysssentinel') {
+    const heavy = combat.turn % 3 === 0;
+    const dmg = Math.round((heavy ? enemy.dmg + 5 : enemy.dmg) * scale);
+    return { name: heavy ? 'Buried Starfall' : 'Aether Sweep', dmg, hits: 1, text: `${dmg} damage` };
+  }
   if (combat.enemyId === 'stonehorn') {
     const heavy = combat.turn % 2 === 1;
     const dmg = Math.round((heavy ? enemy.dmg + 3 : enemy.dmg - 1) * scale);
@@ -136,21 +151,24 @@ export function startExploreCombat(state, options = {}) {
   if (state.explore.combat) return fail('combat-active', 'A battle is already active.');
   const random = randomSource(options.random);
   const boss = Boolean(options.boss);
+  const gateDepth = Number.isInteger(options.gateDepth) && options.gateDepth > 0 && options.gateDepth < METALS.length ? options.gateDepth : null;
   const explore = state.explore;
-  const area = explore.area || 'world';
+  const area = options.origin?.area || explore.area || 'world';
   const wins = explore.regionWins?.[area] || 0;
   explore.step = wins;
   explore.maxHp = getExploreMaxHp(state);
   if (!explore.hp || explore.hp > explore.maxHp) explore.hp = explore.maxHp;
-  const enemy = enemyForStep(state, boss, random);
+  const enemy = EXPLORE_ENEMIES[options.enemyId] || enemyForStep(state, boss, random);
   const areaBonus = area === 'cave' ? 0.18 : area === 'forest' ? 0.10 : 0;
-  const scale = 1 + wins * 0.14 + areaBonus + (boss ? 0.28 : 0);
-  const guard = Math.round(enemy.guard * (1 + wins * 0.08 + areaBonus) + (boss ? 3 : 0));
+  const scale = gateDepth ? 1 : 1 + wins * 0.14 + areaBonus + (boss ? 0.28 : 0);
+  const guard = gateDepth ? enemy.guard : Math.round(enemy.guard * (1 + wins * 0.08 + areaBonus) + (boss ? 3 : 0));
   const position = options.origin?.pos || (area === 'world' ? explore.worldPos : area === 'town' ? explore.townPos : [0, 7.2]);
   const origin = options.origin || { area, pos: [...position], yaw: 0, z: 0 };
   const combat = {
     enemyId: enemy.id,
     boss,
+    gateDepth,
+    area,
     hp: Math.round(enemy.hp * scale),
     maxHp: Math.round(enemy.hp * scale),
     guard,
@@ -174,10 +192,11 @@ export function startExploreCombat(state, options = {}) {
 function resolveVictory(state, combat, random) {
   const explore = state.explore;
   const enemy = EXPLORE_ENEMIES[combat.enemyId];
-  const area = explore.area || 'world';
+  const area = combat.area || explore.area || 'world';
   const wins = explore.regionWins?.[area] || 0;
-  const coins = randomInt(7, 12, random) + wins * 3 + (combat.boss ? 28 : 0);
-  const xp = 12 + wins * 5 + (combat.boss ? 24 : 0);
+  const gateMetal = combat.gateDepth ? METALS[combat.gateDepth] : null;
+  const coins = gateMetal?.gate?.coin ?? (randomInt(7, 12, random) + wins * 3 + (combat.boss ? 28 : 0));
+  const xp = gateMetal ? 24 + combat.gateDepth * 18 : 12 + wins * 5 + (combat.boss ? 24 : 0);
   state.coins += coins;
   explore.haul.coins += coins;
   const heroProgress = addHeroXp(state, xp);
@@ -185,7 +204,15 @@ function resolveVictory(state, combat, random) {
   explore.combat = null;
   explore.encounterDist = 0;
   explore.nextEncounter = 10 + random() * 6;
-  if (combat.boss) {
+  if (gateMetal) {
+    state.open = Math.max(state.open, combat.gateDepth);
+    explore.pending = {
+      type: 'depth-opened',
+      icon: gateMetal.icon,
+      title: `${gateMetal.place} opened`,
+      text: `${gateMetal.name} can now be mined once the required skill level is reached.`
+    };
+  } else if (combat.boss) {
     explore.claimed[area] = true;
     explore.regionWins[area] = Math.max(wins, 3);
     if (area === 'cave') {

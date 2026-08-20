@@ -172,6 +172,7 @@ export function selectMineDepth(state, depth) {
   const metal = METALS[index];
   if (!metal) return fail('invalid-depth', 'Unknown mine depth.');
   if (index > state.open) return fail('locked-depth', `${metal.place} has not been opened yet.`);
+  if ((state.skills?.mining?.l || 1) < metal.mine) return fail('skill-required', `Mining level ${metal.mine} required.`);
   state.depth = index;
   return selectActivity(state, 'mining');
 }
