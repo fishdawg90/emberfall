@@ -26,6 +26,7 @@
 <div class="debug" id="debugPanel"><div class="debugHead"><b>Emberfall debug report</b><button class="copy" id="copyDebug">Copy report</button><button id="reloadDebug">Reload</button><button id="closeDebug">Close</button></div><div class="debugMeta" id="debugMeta"></div><pre class="debugLog" id="debugLog"></pre></div>
 <div class="debugToast" id="debugToast">Copied debug report</div>
 <script>
+var ctx=null;
 (()=>{
  const entries=[]; const started=new Date();
  const clean=v=>{try{if(v instanceof Error)return v.stack||v.message;if(typeof v==='string')return v;return JSON.stringify(v)}catch(_){return String(v)}};
@@ -65,8 +66,8 @@ try{
   EmberDebug.log('BOOT','GLTFLoader loaded',typeof GLTFLoader);
   window.THREE=Object.assign({},THREE_NS,{GLTFLoader});
   document.getElementById('loadingText').textContent='3D engine ready · loading town…';
-  EmberDebug.log('BOOT','starting game.js');
-  await import('./game.js?v=4');
+  EmberDebug.log('BOOT','starting game.js v5');
+  await import('./game.js?v=5');
   EmberDebug.log('BOOT','game.js module executed');
 }catch(e){
   console.error('Bootstrap failed',e);
