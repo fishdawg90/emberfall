@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#101820">
+<title>Emberfall</title>
+<style>
+:root{--glass:#09131ddd;--line:#ffffff26;--ink:#eef4f6;--gold:#dfb66b}*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#0a1118;color:var(--ink);font-family:Inter,system-ui,sans-serif}button{font:inherit;color:inherit}#view{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;background:#91afbf}.top{position:fixed;z-index:20;left:0;right:0;top:0;padding:calc(10px + env(safe-area-inset-top)) 12px 10px;display:flex;justify-content:space-between;align-items:center;pointer-events:none;background:linear-gradient(#071018df,transparent)}.brand b{font-size:14px}.brand small{display:block;color:#b7c4cb;font-size:8px;margin-top:2px}.status{font-size:8px;padding:7px 9px;border-radius:999px;background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(9px)}.status:before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;background:#dfaa54;box-shadow:0 0 8px #dfaa54}.status.ready:before{background:#76d28f;box-shadow:0 0 8px #76d28f}.styles{position:fixed;z-index:22;top:calc(65px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);padding:4px;display:flex;gap:4px;border:1px solid var(--line);border-radius:15px;background:var(--glass);backdrop-filter:blur(10px)}.styles button,.planBtn{border:0;background:transparent;padding:8px 11px;border-radius:10px;font-size:8px;font-weight:900}.styles button.active{background:linear-gradient(#e4bd70,#b87d3e);color:#18110a}.planBtn{position:fixed;z-index:23;right:10px;top:calc(110px + env(safe-area-inset-top));background:var(--glass);border:1px solid var(--line)}.help{position:fixed;z-index:20;left:50%;bottom:calc(17px + env(safe-area-inset-bottom));transform:translateX(-50%);white-space:nowrap;padding:8px 11px;border:1px solid var(--line);border-radius:999px;background:var(--glass);font-size:8px;color:#c8d2d8}.help b{color:#f1cf8f}.crosshair{position:fixed;z-index:9;left:50%;top:50%;width:4px;height:4px;border-radius:50%;background:white;opacity:.35;transform:translate(-50%,-50%);pointer-events:none}.loader{position:fixed;z-index:40;left:50%;top:50%;transform:translate(-50%,-50%);width:min(350px,calc(100% - 36px));padding:17px 18px;border:1px solid var(--line);border-radius:18px;background:#09141eed;box-shadow:0 20px 55px #0009;transition:.25s}.loader.hide{opacity:0;pointer-events:none}.loader b{font-size:14px}.loader span{display:block;color:#aebbc4;font-size:9px;margin-top:5px;line-height:1.4}.track{height:5px;border-radius:6px;background:#ffffff17;overflow:hidden;margin-top:12px}.bar{height:100%;width:3%;background:linear-gradient(90deg,#a87240,#f0cf8c);transition:.2s}.plan{display:none;position:fixed;z-index:30;right:10px;top:calc(148px + env(safe-area-inset-top));width:min(290px,calc(100% - 20px));height:290px;border:1px solid var(--line);border-radius:15px;background:#07111ae8;overflow:hidden;box-shadow:0 15px 45px #0009}.plan.show{display:block}.plan canvas{width:100%;height:100%}.error{display:none;position:fixed;z-index:100;left:10px;right:10px;bottom:70px;padding:11px 13px;border:1px solid #ff8b75;border-radius:12px;background:#4a1515ef;color:#ffe7df;font-size:11px;white-space:pre-wrap}.tap{display:none;position:fixed;z-index:15;width:34px;height:18px;border:2px solid #edca83;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none}.walk{display:none;position:fixed;z-index:23;left:10px;bottom:calc(17px + env(safe-area-inset-bottom));padding:7px 9px;border:1px solid var(--line);border-radius:11px;background:var(--glass);font-size:8px}.walk.show{display:block}.walk button{margin-left:7px;border:0;border-radius:7px;background:#a56e3f;padding:5px 7px;color:#fff;font-size:8px}@media(max-width:430px){.brand small{display:none}.plan{width:260px;height:260px}}
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+<div class="top"><div class="brand"><b>Emberfall</b><small>hosted 3D town generator</small></div><div class="status" id="status">Starting…</div></div>
+<div class="styles"><button class="active" data-style="realistic">Realistic</button><button data-style="dramatic">Dramatic</button></div>
+<button class="planBtn" id="planBtn">Town plan</button>
+<div class="plan" id="plan"><canvas id="planCanvas" width="600" height="600"></canvas></div>
+<div class="crosshair"></div><div class="tap" id="tap"></div>
+<div class="walk" id="walk">Walking <button id="stop">Stop</button></div>
+<div class="help"><b>Tap to walk</b> · drag right to look right · drag up to look up</div>
+<div class="loader" id="loader"><b>Building Emberfall</b><span id="loadingText">Loading complete building assets…</span><div class="track"><div class="bar" id="bar"></div></div></div>
+<div class="error" id="error"></div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/loaders/GLTFLoader.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
