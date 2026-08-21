@@ -77,6 +77,17 @@ export function getYieldMultiplier(state, activity) {
   return 1.085 ** getUpgradeRank(state, activity, 'yield');
 }
 
+export function getProductionEfficiency(state, activity = state.active) {
+  if (activity === 'combat') return 1;
+  const tier = activity === 'mining' ? state.depth : Math.max(0, METALS.findIndex(metal => metal.id === state.smelt));
+  const metal = METALS[tier] || METALS[0];
+  const key = activity === 'mining' ? `${metal.id}Ore` : `${metal.id}Bar`;
+  const threshold = activity === 'mining' ? 80 + tier * 45 : 45 + tier * 30;
+  const stock = Math.max(0, Number(state.inv?.[key]) || 0);
+  if (stock <= threshold) return 1;
+  return Math.max(.015, (stock / threshold) ** -1.55);
+}
+
 export function getCycleSeconds(state, activity = state.active) {
   const definition = ACTIVITIES[activity];
   const skill = state.skills?.[activity];
@@ -201,11 +212,14 @@ export function runWorkCycle(state, options = {}) {
   let amount = 1;
   let metal = null;
   let kind = 'xp';
+  let saturated = false;
+  const efficiency = getProductionEfficiency(state, activity);
 
   if (activity === 'mining') {
     metal = METALS[state.depth];
     if (!metal || state.depth > state.open) return fail('locked-depth', 'That mine depth is not available.');
-    amount = Math.max(1, scaled(randomInt(metal.yield[0], metal.yield[1], random), multiplier, random));
+    saturated = efficiency < 1 && random() > efficiency;
+    amount = saturated ? 0 : Math.max(1, scaled(randomInt(metal.yield[0], metal.yield[1], random), multiplier, random));
     state.inv[`${metal.id}Ore`] += amount;
     kind = 'ore';
   } else if (activity === 'smelting') {
@@ -217,17 +231,21 @@ export function runWorkCycle(state, options = {}) {
       state.running = false;
       return fail('ore-required', `Need ${metal.cost} ${metal.name} ore.`, { metal });
     }
-    state.inv[oreKey] -= metal.cost;
-    amount = Math.max(1, scaled(1, multiplier, random));
-    amount = Math.max(1, scaled(amount, getSmelterMultiplier(state, metal.id), random));
-    state.inv[`${metal.id}Bar`] += amount;
+    saturated = efficiency < 1 && random() > efficiency;
+    if (!saturated) {
+      state.inv[oreKey] -= metal.cost;
+      amount = Math.max(1, scaled(1, multiplier, random));
+      amount = Math.max(1, scaled(amount, getSmelterMultiplier(state, metal.id), random));
+      state.inv[`${metal.id}Bar`] += amount;
+    } else amount = 0;
     kind = 'bar';
   }
 
   let xp = getActivityXp(state, activity);
+  if (saturated) xp = Math.max(1, Math.round(xp * .18));
   if (critical) xp = Math.round(xp * 1.2);
   const progress = addSkillXp(state, activity, xp);
-  return { ok: true, activity, critical, amount, xp, kind, metal, progress };
+  return { ok: true, activity, critical, amount, xp, kind, metal, progress, efficiency, saturated };
 }
 
 export function runOpportunity(state, options = {}) {

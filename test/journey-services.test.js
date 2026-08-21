@@ -152,6 +152,9 @@ test('journey connects inn restoration to the explorable Lower Ways maze', () =>
   state.journey.towns.frostmere = true;
   state.town.inn = 1;
 
+  assert.equal(getJourneyObjective(state).id, 'prepare-lower-ways');
+  state.gear.push({ id: 2, type: 'chest', recipe: 'ia', name: 'Iron Brigandine', atk: 0, def: 6, val: 60 });
+  state.eq.chest = 2;
   assert.equal(getJourneyObjective(state).id, 'enter-lower-ways');
   state.explore.caveRun.active = true;
   state.explore.area = 'cave';

@@ -9,6 +9,7 @@ import {
   getCycleSeconds,
   getEquipment,
   getMarketMultiplier,
+  getProductionEfficiency,
   getTownCost,
   restoreTown,
   runWorkCycle,
@@ -78,6 +79,20 @@ test('normalization migrates armor gear while retaining combat and exploration d
   assert.equal(normalized.explore.combat.resolving, false);
   assert.equal(normalized.explore.regionWins.forest, 2);
   assert.equal(normalized.forgeAnim, null);
+});
+
+test('owned legacy Iron gear receives the new expedition stat floor', () => {
+  const normalized = normalizeSave({
+    gear: [
+      { id: 1, type: 'chest', recipe: 'ia', name: 'Iron Brigandine', def: 5, val: 60, q: 'Standard' },
+      { id: 2, type: 'head', name: 'Fine Iron Helm', def: 2, val: 30, q: 'Fine' }
+    ],
+    eq: { chest: 1, head: 2 }
+  });
+  assert.equal(normalized.gear[0].def, 9);
+  assert.equal(normalized.gear[0].val, 230);
+  assert.equal(normalized.gear[1].recipe, 'ihelm');
+  assert.equal(normalized.gear[1].def, 4);
 });
 
 test('mining cycle preserves original critical yield and XP formulas', () => {
@@ -157,6 +172,25 @@ test('offline work uses the original cycle duration and capped cycle simulation'
   assert.equal(cycle, 3.2);
   assert.equal(result.cycles, 3);
   assert.equal(state.inv.ironOre, 9);
+});
+
+test('large passive stockpiles hit diminishing returns until materials are spent', () => {
+  const state = createFreshState();
+  state.inv.ironOre = 640;
+  assert.equal(getProductionEfficiency(state, 'mining') < .05, true);
+  const result = runWorkCycle(state, { random: () => .9 });
+  assert.equal(result.ok, true);
+  assert.equal(result.saturated, true);
+  assert.equal(result.amount, 0);
+  assert.equal(state.inv.ironOre, 640);
+  state.inv.ironOre = 20;
+  assert.equal(getProductionEfficiency(state, 'mining'), 1);
+});
+
+test('later Iron armour is a substantial ingot sink with expedition-grade defense', () => {
+  const armour = RECIPES.filter(recipe => recipe.m === 'iron' && recipe.type !== 'weapon');
+  assert.equal(armour.reduce((total, recipe) => total + recipe.bars, 0), 74);
+  assert.equal(armour.reduce((total, recipe) => total + recipe.def, 0), 25);
 });
 
 test('forging retains requirements, quality rolls, item stats, IDs, and XP', () => {

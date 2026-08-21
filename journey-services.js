@@ -1,5 +1,5 @@
 import { METALS, TOWN_PROJECTS } from './game-catalog.js';
-import { addHeroXp, getTownCost } from './gameplay-services.js';
+import { addHeroXp, getEquipment, getTownCost } from './gameplay-services.js';
 
 export const TOWN_WELCOME_CONTRACTS = Object.freeze({
   frostmere: Object.freeze({ name: 'Northern survey', coins: 30, xp: 10, text: 'Frostmere pays Greyfen for reopening the northern road.' }),
@@ -168,6 +168,11 @@ export function getJourneyObjective(state) {
     return objective('restore-inn', 'RESTORE GREYFEN', '⌂', 'Restore the Wayfarer Inn', 'The restored inn permanently raises expedition health.', { tab: 'town', button: 'RESTORE' });
   }
 
+  const expeditionDef = getEquipment(state).def;
+  if (!state.explore?.claimed?.cave && expeditionDef < 6) {
+    return objective('prepare-lower-ways', 'SECURE DEEPSTEEL', '♜', 'Forge Iron expedition armour', `${expeditionDef}/6 DEF equipped · armour reduces every hit and strengthens Block`, { tab: 'forge', metalId: 'iron', button: 'FORGE' });
+  }
+
   if (!state.explore?.claimed?.cave) {
     const run = state.explore?.caveRun;
     const inside = Boolean(run?.active && state.explore?.area === 'cave');
@@ -236,6 +241,7 @@ const OBJECTIVE_MISSIONS = Object.freeze({
   'visit-frostmere': 'northern-survey',
   'fund-inn': 'wayfarer-inn',
   'restore-inn': 'wayfarer-inn',
+  'prepare-lower-ways': 'lower-ways',
   'enter-lower-ways': 'lower-ways',
   'explore-lower-ways': 'lower-ways',
   'patrol-forest': 'whisperwood-road',
@@ -275,7 +281,7 @@ export function getMissionJournal(state) {
     { id: 'greyfen-apprenticeship', chapter: 'GREYFEN', icon: '⌂', title: 'Greyfen apprenticeship', description: 'Learn the town, forge an iron weapon, earn coin at the market, and equip it.', unlocked: true, complete: apprenticeshipDone, progress: `${apprenticeshipProgress}/${apprenticeshipSteps.length} steps`, action: missionAction(current, 'greyfen-apprenticeship', { tab: 'town', button: 'OPEN' }) },
     { id: 'northern-survey', chapter: 'THE NORTH ROAD', icon: '❄', title: 'Carry the survey to Frostmere', description: 'Cross Greyfen’s boundary and reopen contact with the northern hold.', unlocked: apprenticeshipDone, complete: Boolean(visits.frostmere), progress: visits.frostmere ? 'Frostmere reached' : 'Destination not reached', action: missionAction(current, 'northern-survey', { landmarkId: 'frostmere', worldAction: 'route', button: 'ROUTE' }) },
     { id: 'wayfarer-inn', chapter: 'RESTORATION', icon: '⌂', title: 'Restore the Wayfarer Inn', description: 'Use travel and trade rewards to reopen Greyfen’s rooms for expeditions.', unlocked: Boolean(visits.frostmere), complete: (Number(state.town?.inn) || 0) >= 1, progress: `Inn level ${Number(state.town?.inn) || 0}/1`, action: missionAction(current, 'wayfarer-inn', { tab: 'town', button: 'OPEN' }) },
-    { id: 'lower-ways', chapter: 'DEEPSTEEL', icon: '◆', title: 'Explore the Lower Ways', description: 'Map the buried maze, survive its encounters, and defeat the guardian at the far end.', unlocked: (Number(state.town?.inn) || 0) >= 1, complete: Boolean(state.explore?.claimed?.cave), progress: state.explore?.claimed?.cave ? 'Deepsteel unlocked' : `${Math.max(1, state.explore?.caveRun?.discovered?.length || 1)}/99 chambers mapped`, action: missionAction(current, 'lower-ways', { landmarkId: 'cave', worldAction: 'route', button: 'ROUTE' }) },
+    { id: 'lower-ways', chapter: 'DEEPSTEEL', icon: '◆', title: 'Explore the Lower Ways', description: 'Forge expedition armour, map the buried maze, build a temporary run deck, and defeat the guardian.', unlocked: (Number(state.town?.inn) || 0) >= 1, complete: Boolean(state.explore?.claimed?.cave), progress: state.explore?.claimed?.cave ? 'Deepsteel unlocked' : getEquipment(state).def < 6 ? `Armour ${getEquipment(state).def}/6 DEF` : `${Math.max(1, state.explore?.caveRun?.discovered?.length || 1)}/99 chambers mapped`, action: missionAction(current, 'lower-ways', { landmarkId: 'cave', worldAction: 'route', button: 'ROUTE' }) },
     { id: 'whisperwood-road', chapter: 'THE WILD ROAD', icon: '♣', title: 'Secure Whisperwood', description: 'Tame the forest road and break its guardian’s hold.', unlocked: Boolean(state.explore?.claimed?.cave), complete: Boolean(state.explore?.claimed?.forest), progress: state.explore?.claimed?.forest ? 'Region secured' : `${Math.min(3, Number(state.explore?.regionWins?.forest) || 0)}/3 patrols`, action: missionAction(current, 'whisperwood-road', { landmarkId: 'forest', worldAction: 'route', button: 'ROUTE' }) },
     { id: 'eastern-charter', chapter: 'REUNITE EMBERFALL', icon: '☀', title: 'Deliver the Eastern Charter', description: 'Follow the opened road to Sunspire and its stronger foundry.', unlocked: Boolean(state.explore?.claimed?.forest), complete: Boolean(visits.sunspire), progress: visits.sunspire ? 'Sunspire reached' : 'Destination not reached', action: missionAction(current, 'eastern-charter', { landmarkId: 'sunspire', worldAction: 'route', button: 'ROUTE' }) },
     { id: 'glass-veins', chapter: 'STAR-SILVER', icon: '✦', title: 'Open the Glass Veins', description: 'Find Sunspire’s mine and defeat the Glass Warden.', unlocked: Boolean(visits.sunspire), complete: (Number(state.open) || 0) >= 2, progress: (Number(state.open) || 0) >= 2 ? 'Star-silver opened' : `Mining level ${Number(state.skills?.mining?.l) || 1}/${METALS[2].mine}`, action: missionAction(current, 'glass-veins', { landmarkId: 'sunspire', worldAction: 'route', button: 'ROUTE' }) },

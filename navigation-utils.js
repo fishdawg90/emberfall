@@ -7,6 +7,14 @@ export function routeHeading(from, to) {
   return Math.atan2(dx, -dz);
 }
 
+export function routeDestinationReached(position, destination, tolerance = 1.15) {
+  if (!position || !destination) return false;
+  return Math.hypot(
+    (Number(destination.x) || 0) - (Number(position.x) || 0),
+    (Number(destination.z) || 0) - (Number(position.z) || 0)
+  ) <= Math.max(.25, Number(tolerance) || 1.15);
+}
+
 export function dampAngle(current, target, responsiveness, deltaTime) {
   const turn = Math.atan2(Math.sin(target - current), Math.cos(target - current));
   const amount = 1 - Math.exp(-Math.max(0, responsiveness) * Math.max(0, deltaTime));

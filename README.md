@@ -14,8 +14,11 @@ one-time town contracts, region patrol routing, and named mine-gate battles so
 the four metal tiers, exploration, combat, trade, and restoration form one
 guided loop. The Lower Ways is now a generated, resumable first-person cave
 maze with fog-of-war mapping, frontier route hints, random card battles,
-uncommon healing discoveries, a far-chamber guardian, and a dedicated
-Deepsteel unlock reward. A persistent health HUD, collapsible live map, brighter
+guaranteed healing and coin discoveries, temporary post-battle card drafts,
+a far-chamber guardian, and a dedicated Deepsteel unlock reward. Iron armour
+now supplies visible per-hit mitigation and stronger Block, while passive
+material stockpiles develop diminishing returns that forging and trade relieve.
+A persistent health HUD, collapsible live map, brighter
 player-following cave light, smoothed routes, and post-look camera return keep
 the phone exploration view readable. Tap the 3D ground to walk, drag to look,
 and use the bottom dock or in-world Greyfen service labels for the migrated

@@ -3,6 +3,7 @@
 // rules can be moved in small, testable slices.
 
 import { createFreshCaveRun, normalizeCaveRun } from './cave-data.js';
+import { RECIPES } from './game-catalog.js';
 
 export const CANONICAL_SAVE_KEY = 'emberfall_depths_v4';
 export const COMPATIBLE_SAVE_KEYS = Object.freeze([
@@ -171,7 +172,17 @@ function normalizeEquipment(raw) {
 function normalizeGear(raw) {
   return arrayOrEmpty(raw).map(item => {
     if (!item || typeof item !== 'object') return item;
-    return item.type === 'armor' ? { ...item, type: 'chest' } : { ...item };
+    const normalized = item.type === 'armor' ? { ...item, type: 'chest' } : { ...item };
+    const recipe = RECIPES.find(entry => entry.id === normalized.recipe)
+      || RECIPES.find(entry => normalized.name?.endsWith(entry.name));
+    if (recipe?.m === 'iron') {
+      const quality = normalized.q === 'Masterwork' ? 1.28 : normalized.q === 'Fine' ? 1.12 : 1;
+      normalized.recipe ||= recipe.id;
+      normalized.atk = Math.max(Number(normalized.atk) || 0, Math.round(recipe.atk * quality));
+      normalized.def = Math.max(Number(normalized.def) || 0, Math.round(recipe.def * quality));
+      normalized.val = Math.max(Number(normalized.val) || 0, Math.round(recipe.val * (normalized.q === 'Masterwork' ? 1.55 : normalized.q === 'Fine' ? 1.22 : 1)));
+    }
+    return normalized;
   });
 }
 

@@ -1,4 +1,4 @@
-import { EXPLORE_CARDS, EXPLORE_ENEMIES, METALS, RECIPES } from './game-catalog.js';
+import { CAVE_REWARD_CARD_IDS, EXPLORE_CARDS, EXPLORE_ENEMIES, METALS, RECIPES } from './game-catalog.js';
 import { addHeroXp, getEquipment } from './gameplay-services.js';
 
 function fail(code, message, extra = {}) {
@@ -19,6 +19,9 @@ function ensureCombatCollections(combat) {
   combat.hand = Array.isArray(combat.hand) ? combat.hand : [];
   combat.energy = Number.isFinite(combat.energy) ? combat.energy : 3;
   combat.block = Number.isFinite(combat.block) ? combat.block : 0;
+  combat.evade = Number.isFinite(combat.evade) ? combat.evade : 0;
+  combat.enemyWeak = Number.isFinite(combat.enemyWeak) ? combat.enemyWeak : 0;
+  combat.retainBlock = Number.isFinite(combat.retainBlock) ? combat.retainBlock : 0;
   combat.turn = Number.isFinite(combat.turn) ? combat.turn : 1;
   return combat;
 }
@@ -42,7 +45,7 @@ function equippedWeaponCard(state) {
 
 export function getCombatDeck(state) {
   const level = state.hero?.level || 1;
-  let deck = ['slash', 'slash', 'splitter', 'splitter', 'guard', 'guard', 'feint', 'heavy'];
+  let deck = ['slash', 'slash', 'splitter', 'splitter', 'guard', 'guard', 'feint', 'heavy', 'sidestep'];
   if (level >= 2) {
     deck.push('brace');
     deck = deck.filter((card, index) => !(card === 'guard' && index === 5));
@@ -54,14 +57,22 @@ export function getCombatDeck(state) {
     if (slash >= 0) deck.splice(slash, 1);
     deck.push(weaponCard);
   }
-  return deck.slice(0, 11);
+  const runCards = state.explore?.caveRun?.active && Array.isArray(state.explore.caveRun.runCards)
+    ? state.explore.caveRun.runCards.filter(id => EXPLORE_CARDS[id])
+    : [];
+  return [...deck.slice(0, 11), ...runCards].slice(0, 18);
 }
 
 export function getExploreMaxHp(state) {
   const equipment = getEquipment(state);
   const level = state.hero?.level || 1;
   const inn = state.town?.inn || 0;
-  return Math.round(34 + level * 3.2 + equipment.def * 1.65 + inn * 3);
+  return Math.round(35.7 + level * 3.2 + equipment.def * 1.45 + inn * 3);
+}
+
+function ironArmourPieces(state) {
+  const equipment = getEquipment(state);
+  return ['head', 'chest', 'hands', 'legs', 'feet'].filter(slot => /^i(?:h|helm|b|l|a)$/.test(equipment[slot]?.recipe || '')).length;
 }
 
 export function getExploreBonuses(state) {
@@ -69,33 +80,40 @@ export function getExploreBonuses(state) {
   const buffs = state.explore?.buffs || {};
   return {
     damage: Math.floor(equipment.atk * 0.32) + Math.floor(((state.hero?.level || 1) - 1) * 0.45) + (buffs.dmg || 0),
-    block: Math.floor(equipment.def * 0.20) + (buffs.block || 0),
-    break: buffs.brk || 0
+    block: Math.floor(equipment.def * 0.36) + (ironArmourPieces(state) >= 4 ? 2 : 0) + (buffs.block || 0),
+    break: buffs.brk || 0,
+    armour: Math.floor(equipment.def * 0.18) + (ironArmourPieces(state) >= 4 ? 1 : 0)
   };
 }
 
 export function getCardNumbers(state, cardOrId) {
   const card = typeof cardOrId === 'string' ? EXPLORE_CARDS[cardOrId] : cardOrId;
   const bonuses = getExploreBonuses(state);
-  return {
+  const numbers = {
     dmg: card?.dmg ? card.dmg + bonuses.damage : 0,
     brk: card?.brk ? card.brk + bonuses.break : 0,
     block: card?.block ? card.block + bonuses.block : 0
   };
+  if (card?.evade) numbers.evade = card.evade;
+  if (card?.weak) numbers.weak = card.weak;
+  return numbers;
 }
 
 export function getCardText(state, cardOrId) {
   const card = typeof cardOrId === 'string' ? EXPLORE_CARDS[cardOrId] : cardOrId;
   if (!card) return '';
   const numbers = getCardNumbers(state, card);
-  return card.text.replace('{dmg}', numbers.dmg).replace('{brk}', numbers.brk).replace('{block}', numbers.block);
+  return card.text
+    .replaceAll('{dmg}', numbers.dmg)
+    .replaceAll('{brk}', numbers.brk)
+    .replaceAll('{block}', numbers.block);
 }
 
 export function getEnemyIntent(state, combat = state.explore?.combat) {
   if (!combat) return null;
   const enemy = EXPLORE_ENEMIES[combat.enemyId];
   if (!enemy) return null;
-  const scale = combat.gateDepth ? 1 : 1 + state.explore.step * 0.08 + (combat.boss ? 0.12 : 0);
+  const scale = Number.isFinite(combat.damageScale) ? combat.damageScale : 1;
   if (combat.enemyId === 'tunnelmauler') {
     const heavy = combat.turn % 2 === 0;
     const dmg = Math.round((heavy ? enemy.dmg + 3 : enemy.dmg) * scale);
@@ -113,7 +131,7 @@ export function getEnemyIntent(state, combat = state.explore?.combat) {
   }
   if (combat.enemyId === 'stonehorn') {
     const heavy = combat.turn % 2 === 1;
-    const dmg = Math.round((heavy ? enemy.dmg + 3 : enemy.dmg - 1) * scale);
+    const dmg = Math.round((heavy ? enemy.dmg + 2 : enemy.dmg - 1) * scale);
     return { name: heavy ? 'Heavy Charge' : 'Headbutt', dmg, hits: 1, text: `${dmg} damage` };
   }
   if (combat.enemyId === 'crawler') {
@@ -122,7 +140,7 @@ export function getEnemyIntent(state, combat = state.explore?.combat) {
   }
   if (combat.enemyId === 'custodian') {
     const heavy = combat.turn % 3 === 0;
-    const dmg = Math.round((heavy ? enemy.dmg + 4 : enemy.dmg) * scale);
+    const dmg = Math.round((heavy ? enemy.dmg + 3 : enemy.dmg) * scale);
     return { name: heavy ? 'Gatebreaker' : 'Iron Sweep', dmg, hits: 1, text: `${dmg} damage` };
   }
   const dmg = Math.round(enemy.dmg * scale);
@@ -145,6 +163,43 @@ function enemyForStep(state, boss, random) {
   if (boss) return EXPLORE_ENEMIES.custodian;
   const order = ['scavenger', 'crawler', 'stonehorn'];
   return EXPLORE_ENEMIES[order[(state.explore.step + Math.floor(random() * 3)) % 3]];
+}
+
+function createCaveCardDraft(random) {
+  return shuffleCards(CAVE_REWARD_CARD_IDS, random).slice(0, 3);
+}
+
+export function getCaveCardDraft(state) {
+  const run = state.explore?.caveRun;
+  const draft = run?.pendingDraft;
+  if (!run?.active || !draft || !Array.isArray(draft.choices)) return null;
+  const choices = draft.choices.filter(id => EXPLORE_CARDS[id]).map(id => ({
+    ...EXPLORE_CARDS[id],
+    text: getCardText(state, id)
+  }));
+  return choices.length ? { ...draft, choices, deckSize: run.runCards?.length || 0 } : null;
+}
+
+export function chooseCaveCardReward(state, cardId) {
+  const run = state.explore?.caveRun;
+  const draft = run?.pendingDraft;
+  if (!run?.active || !draft) return fail('no-draft', 'No expedition card reward is waiting.');
+  if (!draft.choices?.includes(cardId) || !EXPLORE_CARDS[cardId]) return fail('invalid-card', 'That card is not one of the current choices.');
+  run.runCards = Array.isArray(run.runCards) ? run.runCards : [];
+  run.runCards.push(cardId);
+  run.pendingDraft = null;
+  if (state.explore.combat?.draftOnly) state.explore.combat = null;
+  return { ok: true, card: EXPLORE_CARDS[cardId], runCards: [...run.runCards] };
+}
+
+export function skipCaveCardReward(state) {
+  const run = state.explore?.caveRun;
+  if (!run?.active || !run.pendingDraft) return fail('no-draft', 'No expedition card reward is waiting.');
+  run.pendingDraft = null;
+  if (state.explore.combat?.draftOnly) state.explore.combat = null;
+  state.coins += 6;
+  state.explore.haul.coins += 6;
+  return { ok: true, coins: 6, runCards: [...(run.runCards || [])] };
 }
 
 export function startExploreCombat(state, options = {}) {
@@ -174,8 +229,12 @@ export function startExploreCombat(state, options = {}) {
     guard,
     guardMax: guard,
     broken: false,
+    damageScale: gateDepth ? 1 : 1 + wins * .04 + (area === 'cave' ? .04 : 0) + (boss ? .10 : 0),
     energy: 3,
     block: 0,
+    evade: 0,
+    enemyWeak: 0,
+    retainBlock: 0,
     turn: 1,
     draw: shuffleCards(getCombatDeck(state), random),
     discard: [],
@@ -220,6 +279,8 @@ function resolveVictory(state, combat, random) {
       if (explore.caveRun) {
         explore.caveRun.completed = true;
         explore.caveRun.bossStarted = false;
+        explore.caveRun.runCards = [];
+        explore.caveRun.pendingDraft = null;
       }
       explore.pending = {
         type: 'mine-unlocked',
@@ -238,6 +299,16 @@ function resolveVictory(state, combat, random) {
   } else {
     explore.regionWins[area] = wins + 1;
     explore.step = explore.regionWins[area];
+    if (area === 'cave' && explore.caveRun?.active) {
+      explore.caveRun.pendingDraft = {
+        choices: createCaveCardDraft(random),
+        source: 'battle',
+        won: explore.regionWins[area]
+      };
+      // Keep the world paused until the post-battle run-card choice resolves.
+      // The UI treats this sentinel as a draft rather than a live enemy.
+      explore.combat = { draftOnly: true, area, origin: combat.origin };
+    }
   }
   return { ok: true, victory: true, boss: combat.boss, enemy, coins, xp, heroProgress, area };
 }
@@ -254,7 +325,7 @@ export function playExploreCard(state, index, options = {}) {
 
   combat.energy -= card.cost;
   combat.hand.splice(index, 1);
-  combat.discard.push(cardId);
+  if (!card.exhaust) combat.discard.push(cardId);
   const numbers = getCardNumbers(state, card);
   let justBroken = false;
   if (numbers.brk && !combat.broken) {
@@ -266,8 +337,10 @@ export function playExploreCard(state, index, options = {}) {
     }
   }
   let damage = 0;
-  if (numbers.dmg) {
-    damage = Math.round(numbers.dmg * (combat.broken ? 1.28 : 1));
+  const blockStrike = card.blockDamage ? Math.floor(combat.block * card.blockDamage) : 0;
+  const perHit = numbers.dmg + blockStrike + (combat.broken ? card.brokenBonus || 0 : 0);
+  if (perHit) {
+    damage = Math.round(perHit * (card.hits || 1) * (combat.broken ? 1.3 : 1));
     combat.hp = Math.max(0, combat.hp - damage);
     combat.log = `${card.name}: ${damage} damage${numbers.brk ? ` · ${numbers.brk} Break` : ''}.`;
   }
@@ -275,14 +348,29 @@ export function playExploreCard(state, index, options = {}) {
     combat.block += numbers.block;
     combat.log = `${card.name}: +${numbers.block} Block.`;
   }
+  if (numbers.evade) combat.evade += numbers.evade;
+  if (numbers.weak) combat.enemyWeak = Math.max(combat.enemyWeak, numbers.weak);
+  if (card.retainBlock) combat.retainBlock = Math.max(combat.retainBlock, card.retainBlock);
+  if (card.brokenEnergy && combat.broken) combat.energy += card.brokenEnergy;
   if (card.draw) drawExploreCards(combat, card.draw, random);
+  const effects = [
+    damage ? `${damage} damage` : '',
+    numbers.brk ? `${numbers.brk} Break` : '',
+    numbers.block ? `+${numbers.block} Block` : '',
+    numbers.evade ? `Evade ${numbers.evade}` : '',
+    numbers.weak ? `Weaken ${numbers.weak}` : '',
+    card.draw ? `draw ${card.draw}` : '',
+    card.brokenEnergy && combat.broken ? `+${card.brokenEnergy} Energy` : ''
+  ].filter(Boolean);
+  combat.log = `${card.name}: ${effects.join(' · ')}.`;
   if (justBroken && numbers.dmg) combat.log = `${card.name} BREAKS ${EXPLORE_ENEMIES[combat.enemyId].name} · ${damage} damage.`;
   if (combat.hp <= 0) return { ...resolveVictory(state, combat, random), card, cardId, damage, numbers, justBroken };
   return { ok: true, victory: false, card, cardId, damage, numbers, justBroken, combat };
 }
 
 function finishEnemyTurn(combat, random) {
-  combat.block = 0;
+  combat.block = Math.floor(combat.block * combat.retainBlock);
+  combat.retainBlock = 0;
   combat.discard.push(...combat.hand);
   combat.hand = [];
   combat.energy = 3;
@@ -314,6 +402,8 @@ function loseExploreCombat(state) {
       // entrance instead of letting defeat become a free checkpoint teleport.
       explore.caveRun.cell = 0;
       explore.caveRun.position = null;
+      explore.caveRun.runCards = [];
+      explore.caveRun.pendingDraft = null;
     }
   }
   return { ok: true, defeat: true, area: 'town' };
@@ -328,21 +418,37 @@ export function endExploreTurn(state, options = {}) {
   const enemy = EXPLORE_ENEMIES[combat.enemyId];
   let taken = 0;
   let absorbed = 0;
+  let mitigated = 0;
+  let evaded = 0;
   let staggered = false;
   if (combat.broken) {
     staggered = true;
     combat.log = `${enemy.name} staggers. Its attack collapses.`;
     combat.guard = combat.guardMax;
   } else {
-    const total = intent.dmg * intent.hits;
-    absorbed = Math.min(combat.block, total);
-    taken = Math.max(0, total - combat.block);
+    for (let hit = 0; hit < intent.hits; hit += 1) {
+      if (combat.evade > 0) {
+        combat.evade -= 1;
+        evaded += 1;
+        continue;
+      }
+      const weakened = Math.max(0, intent.dmg - combat.enemyWeak);
+      const armour = getExploreBonuses(state).armour;
+      const afterArmour = Math.max(0, weakened - armour);
+      mitigated += weakened - afterArmour;
+      const blocked = Math.min(combat.block, afterArmour);
+      combat.block -= blocked;
+      absorbed += blocked;
+      taken += afterArmour - blocked;
+    }
+    combat.enemyWeak = 0;
     state.explore.hp = Math.max(0, state.explore.hp - taken);
-    combat.log = `${intent.name}: ${taken} damage${absorbed ? ` (${absorbed} blocked)` : ''}.`;
+    const prevented = [evaded ? `${evaded} hit evaded` : '', absorbed ? `${absorbed} blocked` : '', mitigated ? `${mitigated} by armour` : ''].filter(Boolean).join(' · ');
+    combat.log = `${intent.name}: ${taken} damage${prevented ? ` (${prevented})` : ''}.`;
   }
-  if (state.explore.hp <= 0) return { ...loseExploreCombat(state), intent, taken, absorbed, staggered };
+  if (state.explore.hp <= 0) return { ...loseExploreCombat(state), intent, taken, absorbed, mitigated, evaded, staggered };
   finishEnemyTurn(combat, random);
-  return { ok: true, defeat: false, intent, taken, absorbed, staggered, combat };
+  return { ok: true, defeat: false, intent, taken, absorbed, mitigated, evaded, staggered, combat };
 }
 
 export function registerTravelDistance(state, distance, options = {}) {
@@ -358,6 +464,7 @@ export function registerTravelDistance(state, distance, options = {}) {
 }
 
 export function getCombatView(state) {
+  if (state.explore?.combat?.draftOnly) return null;
   const combat = state.explore?.combat && ensureCombatCollections(state.explore.combat);
   if (!combat) return null;
   return {
@@ -365,6 +472,7 @@ export function getCombatView(state) {
     enemy: EXPLORE_ENEMIES[combat.enemyId],
     intent: getEnemyIntent(state, combat),
     maxHp: getExploreMaxHp(state),
+    bonuses: getExploreBonuses(state),
     cards: combat.hand.map((id, index) => ({ index, ...EXPLORE_CARDS[id], numbers: getCardNumbers(state, id), text: getCardText(state, id) }))
   };
 }

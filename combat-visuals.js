@@ -47,7 +47,17 @@ const CARD_ART = Object.freeze({
   driving: ['breaker', '↯'],
   sunder: ['breaker', '✣'],
   silvercut: ['silver', '☾'],
-  aetherbreak: ['aether', '✦']
+  aetherbreak: ['aether', '✦'],
+  sidestep: ['utility', '➶'],
+  deflect: ['guard', '◈'],
+  shatter: ['breaker', '✹'],
+  shieldbash: ['guard', '⬢'],
+  hobble: ['utility', '⌁'],
+  rally: ['guard', '♜'],
+  exploit: ['attack', '⚡'],
+  flurry: ['attack', '≋'],
+  focus: ['utility', '◎'],
+  bulwark: ['guard', '▰']
 });
 
 export function cardArtMarkup(cardId) {
