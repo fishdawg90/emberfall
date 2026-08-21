@@ -6,6 +6,7 @@ import {
   canChallengeMineGate,
   getActiveMission,
   getGreyfenTasks,
+  getInterfaceUnlocks,
   getJourneyObjective,
   getMissionJournal,
   pinMission,
@@ -13,6 +14,31 @@ import {
   recordTownArrival,
   recordTradeCoins
 } from '../journey-services.js';
+
+test('interface systems reveal through town discovery and useful inventory', () => {
+  const state = createFreshState();
+  assert.deepEqual(
+    Object.fromEntries(Object.entries(getInterfaceUnlocks(state)).filter(([, value]) => value === true)),
+    { work: true, town: true, journal: true }
+  );
+  assert.equal(getInterfaceUnlocks(state).projects.inn, false);
+
+  recordServiceVisit(state, 'mine');
+  assert.equal(getInterfaceUnlocks(state).mining, true);
+  assert.equal(getInterfaceUnlocks(state).smelting, false);
+  recordServiceVisit(state, 'smelter');
+  assert.equal(getInterfaceUnlocks(state).smelting, true);
+  assert.equal(getInterfaceUnlocks(state).projects.smelter, true);
+  recordServiceVisit(state, 'forge');
+  assert.equal(getInterfaceUnlocks(state).forge, true);
+  assert.equal(getInterfaceUnlocks(state).training, true);
+  assert.equal(getInterfaceUnlocks(state).gear, false);
+
+  state.gear.push({ id: 1, type: 'weapon', name: 'Iron Longsword' });
+  assert.equal(getInterfaceUnlocks(state).gear, true);
+  state.journey.towns.frostmere = true;
+  assert.equal(getInterfaceUnlocks(state).projects.inn, true);
+});
 
 test('journey guides a fresh hero through ore, bars, forging, and equipment', () => {
   const state = createFreshState();

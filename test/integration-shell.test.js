@@ -14,7 +14,7 @@ const [html, game, worldVisuals, activityVisuals, combatVisuals] = await Promise
 test('hosted shell retains mobile navigation, camera direction, assets, roads, and debug report', () => {
   assert.match(html, /id="debugBtn"/);
   assert.match(html, /window\.EmberDebug/);
-  assert.match(html, /Tap to walk/);
+  assert.match(html, /<b>Tap<\/b> to walk/);
   assert.match(game, /yaw\+=dx\*\.0045/);
   assert.match(game, /pitch=clamp\(pitch-dy\*\.0037/);
   assert.match(game, /building-small-a\.glb/);
@@ -24,7 +24,7 @@ test('hosted shell retains mobile navigation, camera direction, assets, roads, a
 test('migrated gameplay dock is loaded without replacing the Three.js runtime', () => {
   assert.match(html, /class="gameDock"/);
   assert.match(html, /id="gamePanel"/);
-  assert.match(html, /game\.js\?v=12/);
+  assert.match(html, /game\.js\?v=13/);
   assert.match(game, /createGameUI/);
   assert.match(game, /new THREE\.WebGLRenderer/);
   assert.match(game, /saveGameState/);
@@ -200,11 +200,17 @@ test('quick intro and mission journal connect the full gameplay loop', async () 
   const ui = await readFile(new URL('game-ui.js', root), 'utf8');
   const journey = await readFile(new URL('journey-services.js', root), 'utf8');
   assert.match(html, /id="introOverlay"/);
-  assert.match(html, /Rebuild the town\. Forge the road ahead/);
+  assert.match(html, /Restore Greyfen\. Reopen the world/);
   assert.match(html, /id="missionTracker"/);
   assert.match(html, /data-open-game-tab="journal"/);
   assert.match(html, /id="missionRoute"/);
-  assert.match(ui, /class="systemThread"/);
+  assert.doesNotMatch(html, /id="gamePanelTabs"/);
+  assert.doesNotMatch(ui, /class="systemThread"/);
+  assert.match(html, /id="gameDock"/);
+  assert.doesNotMatch(html.match(/<nav class="gameDock"[\s\S]*?<\/nav>/)?.[0] || '', /data-open-game-tab="market"/);
+  assert.match(ui, /getInterfaceUnlocks/);
+  assert.match(ui, /compactHelp/);
+  assert.match(ui, /journalGroup/);
   assert.match(ui, /getMissionJournal/);
   assert.match(ui, /getActiveMission/);
   assert.match(ui, /reset-confirm/);

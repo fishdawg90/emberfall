@@ -132,6 +132,15 @@ The hosted repo is intentionally small:
     and reveals its new level with added props, a rise/pulse, and a construction
     ring. A two-step journal action can clear all compatible save aliases and
     restart from a clean v4-compatible state.
+13. **Progressive interface pass (integrated).** The duplicated panel tabs and
+    five-step loop ribbon are removed in favour of one compact dock that remains
+    available inside menus. Fresh heroes see only Work, Town, and Journal;
+    discovering the smithy reveals Forge, and the first forged item reveals
+    Gear. Mining, smelting, training, market access, metal recipes, and town
+    projects now follow their world discoveries. Dense explanations, locked
+    recipes, completed missions, undiscovered missions, display controls, and
+    save management sit behind focused expandable sections. Market access moves
+    into Greyfen, and its default list shows only goods the player can sell.
 
 ## Current working checkpoint
 

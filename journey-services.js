@@ -36,6 +36,29 @@ export function getGreyfenTasks(state) {
   return tasks;
 }
 
+export function getInterfaceUnlocks(state) {
+  const services = state.journey?.services || {};
+  const towns = townVisits(state);
+  const hasGear = Boolean(state.gear?.length) || Object.values(state.eq || {}).some(Boolean);
+  return {
+    work: true,
+    mining: Boolean(services.mine),
+    smelting: Boolean(services.smelter),
+    training: Boolean(services.forge),
+    forge: Boolean(services.forge),
+    gear: hasGear,
+    town: true,
+    market: Boolean(services.market),
+    journal: true,
+    projects: {
+      forge: Boolean(services.forge),
+      smelter: Boolean(services.smelter),
+      market: Boolean(services.market),
+      inn: Boolean(towns.frostmere)
+    }
+  };
+}
+
 export function recordServiceVisit(state, serviceId) {
   if (!GREYFEN_TASKS.some(task => task.id === serviceId)) return { ok: true, discovered: false, serviceId };
   state.journey ||= { towns: { town: true } };
