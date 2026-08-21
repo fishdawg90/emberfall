@@ -246,6 +246,7 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
     activityVisuals.show(mode, {
       running: activeTab === 'work' && state.running,
       progress: activeTab === 'work' ? state.p : 0,
+      metalId: selectedMetal?.id,
       metalColor: selectedMetal?.color,
       ...activityStack(state, mode, selectedMetal)
     });
@@ -778,6 +779,7 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
       activityVisuals.update({
         running: activeTab === 'work' && state.running,
         progress: state.p,
+        metalId: selectedMetal?.id,
         metalColor: selectedMetal?.color,
         ...activityStack(state, mode, selectedMetal)
       });

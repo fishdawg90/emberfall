@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createFreshState, normalizeSave } from '../game-state.js';
+import { EXPLORATION_REWARDS } from '../game-catalog.js';
 import {
   CAVE_HEIGHT,
   CAVE_WIDTH,
@@ -13,6 +14,7 @@ import {
 import {
   enterLowerWays,
   getCaveRunView,
+  leaveLowerWays,
   markCaveBossStarted,
   updateCavePosition,
   useNearbyCaveCoinCache,
@@ -50,6 +52,21 @@ test('a cave run persists its seed, discoveries, and exact position through save
   assert.equal(normalized.explore.caveRun.discovered.includes(normalized.explore.caveRun.cell), true);
 });
 
+test('leaving a cave can warp to its saved entrance and clean temporary run rewards', () => {
+  const state = createFreshState();
+  const returnWorldPos = [203, 158];
+  enterLowerWays(state, returnWorldPos);
+  state.explore.caveRun.runCards = ['deflect', 'flurry'];
+  state.explore.caveRun.pendingDraft = { choices: ['rally'] };
+  const result = leaveLowerWays(state);
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.returnWorldPos, returnWorldPos);
+  assert.equal(state.explore.area, 'world');
+  assert.equal(state.explore.caveRun.active, false);
+  assert.deepEqual(state.explore.caveRun.runCards, []);
+  assert.equal(state.explore.caveRun.pendingDraft, null);
+});
+
 test('healing growths are deterministic, one-use, and do not disappear while health is full', () => {
   let state;
   let view;
@@ -85,6 +102,8 @@ test('every Lower Ways run contains healing and one-use coin discoveries', () =>
   const before = state.coins;
   const found = useNearbyCaveCoinCache(state, position);
   assert.equal(found.claimed, true);
+  assert.equal(found.coins >= EXPLORATION_REWARDS.cacheMin, true);
+  assert.equal(found.coins < EXPLORATION_REWARDS.cacheMin + EXPLORATION_REWARDS.cacheRange, true);
   assert.equal(state.coins, before + found.coins);
   assert.equal(useNearbyCaveCoinCache(state, position).claimed, false);
   const normalized = normalizeSave(state);

@@ -68,7 +68,7 @@
 <div class="gameToast" id="gameToast"></div>
 <div class="caveBrief" id="caveBrief" aria-live="polite"><small>CAVE EXPEDITION</small><b>Map. Adapt. Break the seal.</b><span>Find green Embermoss and gold caches. Each battle adds a temporary card choice to this run.</span></div>
 <div class="introOverlay" id="introOverlay" aria-hidden="true"><section class="introCard"><small>EMBERFALL</small><h1>Restore Greyfen. Reopen the world.</h1><p>Gather, forge, venture, rebuild.</p><div class="introLoop"><div><i>⛏</i><b>GATHER</b></div><span>›</span><div><i>♨</i><b>REFINE</b></div><span>›</span><div><i>⚒</i><b>FORGE</b></div><span>›</span><div><i>⚔</i><b>VENTURE</b></div><span>›</span><div><i>⌂</i><b>RESTORE</b></div></div><div class="introPromise">Your gear becomes your card deck. Safer roads reveal towns, mines, and better facilities.</div><button id="introBegin">Begin in Greyfen</button></section></div>
-<div class="unlockOverlay" id="unlockOverlay" aria-hidden="true"><section class="unlockCard"><div class="unlockBurst"></div><div class="unlockIcon" id="unlockIcon">◆</div><small id="unlockEyebrow">LOWER WAYS SECURED</small><h2 id="unlockTitle">Deepsteel unlocked!</h2><p id="unlockText">Greyfen miners can now reach the Deepsteel seams.</p><div class="unlockRewards"><span>GUARDIAN REWARD<b id="unlockCoins">+0 coin</b></span><span>HERO PROGRESS<b id="unlockXp">+0 XP</b></span></div><div class="unlockActions"><button id="unlockReturn">Return to entrance</button><button id="unlockStay">Keep exploring</button></div><div class="unlockHint">Deepsteel appears in Work and Forge. Mining level 5 is still required.</div></section></div>
+<div class="unlockOverlay" id="unlockOverlay" aria-hidden="true"><section class="unlockCard"><div class="unlockBurst"></div><div class="unlockIcon" id="unlockIcon">◆</div><small id="unlockEyebrow">LOWER WAYS SECURED</small><h2 id="unlockTitle">Deepsteel unlocked!</h2><p id="unlockText">Greyfen miners can now reach the Deepsteel seams.</p><div class="unlockRewards"><span>GUARDIAN REWARD<b id="unlockCoins">+0 coin</b></span><span>HERO PROGRESS<b id="unlockXp">+0 XP</b></span></div><div class="unlockActions"><button id="unlockReturn">Warp out</button><button id="unlockStay">Keep exploring</button></div><div class="unlockHint">Deepsteel appears in Work and Forge. Mining level 5 is still required.</div></section></div>
 <div class="loader" id="loader"><b>Building Emberfall</b><span id="loadingText">Starting 3D engine…</span><div class="track"><div class="bar" id="bar"></div></div></div>
 <div class="error" id="error"></div>
 <div class="debug" id="debugPanel"><div class="debugHead"><b>Emberfall debug report</b><button class="copy" id="copyDebug">Copy report</button><button id="reloadDebug">Reload</button><button id="closeDebug">Close</button></div><div class="debugMeta" id="debugMeta"></div><pre class="debugLog" id="debugLog"></pre></div>
@@ -114,8 +114,8 @@ try{
   EmberDebug.log('BOOT','GLTFLoader loaded',typeof GLTFLoader);
   window.THREE=Object.assign({},THREE_NS,{GLTFLoader});
   document.getElementById('loadingText').textContent='3D engine ready · loading town…';
-  EmberDebug.log('BOOT','starting game.js v18');
-  await import('./game.js?v=18');
+  EmberDebug.log('BOOT','starting game.js v19');
+  await import('./game.js?v=19');
   EmberDebug.log('BOOT','game.js module executed');
 }catch(e){
   console.error('Bootstrap failed',e);

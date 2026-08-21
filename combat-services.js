@@ -1,4 +1,4 @@
-import { CAVE_REWARD_CARD_IDS, EXPLORE_CARDS, EXPLORE_ENEMIES, METALS, RECIPES } from './game-catalog.js';
+import { CAVE_REWARD_CARD_IDS, EXPLORE_CARDS, EXPLORE_ENEMIES, EXPLORATION_REWARDS, METALS, RECIPES } from './game-catalog.js';
 import { addHeroXp, getEquipment } from './gameplay-services.js';
 
 function fail(code, message, extra = {}) {
@@ -197,9 +197,10 @@ export function skipCaveCardReward(state) {
   if (!run?.active || !run.pendingDraft) return fail('no-draft', 'No expedition card reward is waiting.');
   run.pendingDraft = null;
   if (state.explore.combat?.draftOnly) state.explore.combat = null;
-  state.coins += 6;
-  state.explore.haul.coins += 6;
-  return { ok: true, coins: 6, runCards: [...(run.runCards || [])] };
+  const coins = EXPLORATION_REWARDS.skippedCard;
+  state.coins += coins;
+  state.explore.haul.coins += coins;
+  return { ok: true, coins, runCards: [...(run.runCards || [])] };
 }
 
 export function startExploreCombat(state, options = {}) {
@@ -254,7 +255,12 @@ function resolveVictory(state, combat, random) {
   const area = combat.area || explore.area || 'world';
   const wins = explore.regionWins?.[area] || 0;
   const gateMetal = combat.gateDepth ? METALS[combat.gateDepth] : null;
-  const coins = gateMetal?.gate?.coin ?? (randomInt(7, 12, random) + wins * 3 + (combat.boss ? 28 : 0));
+  const coins = gateMetal?.gate?.coin ?? (
+    randomInt(EXPLORATION_REWARDS.battleMin, EXPLORATION_REWARDS.battleMax, random)
+    + wins * EXPLORATION_REWARDS.winBonus
+    + (area === 'cave' ? EXPLORATION_REWARDS.caveBonus : 0)
+    + (combat.boss ? EXPLORATION_REWARDS.bossBonus : 0)
+  );
   const xp = gateMetal ? 24 + combat.gateDepth * 18 : 12 + wins * 5 + (combat.boss ? 24 : 0);
   state.coins += coins;
   explore.haul.coins += coins;

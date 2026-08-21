@@ -27,7 +27,7 @@ test('hosted shell retains mobile navigation, camera direction, assets, roads, a
 test('migrated gameplay dock is loaded without replacing the Three.js runtime', () => {
   assert.match(html, /class="gameDock"/);
   assert.match(html, /id="gamePanel"/);
-  assert.match(html, /game\.js\?v=18/);
+  assert.match(html, /game\.js\?v=19/);
   assert.match(game, /createGameUI/);
   assert.match(game, /new THREE\.WebGLRenderer/);
   assert.match(game, /saveGameState/);
@@ -188,6 +188,14 @@ test('work and forge panels expose mobile-budget first-person Three.js scenes', 
   assert.match(ui, /activityVisuals\.show/);
   assert.match(ui, /activityVisuals\.pulse/);
   assert.match(ui, /activityVisuals\.destroy/);
+  assert.match(ui, /metalId: selectedMetal\?\.id/);
+  assert.match(activityVisuals, /const MINING_THEMES/);
+  for (const identity of ['IRON MOUTH', 'FLOODED GALLERIES', 'GLASS VEINS', 'THE BURIED SKY']) {
+    assert.match(activityVisuals, new RegExp(identity));
+  }
+  assert.match(activityVisuals, /new THREE\.PlaneGeometry\(8\.1, 10\)/);
+  assert.match(activityVisuals, /new THREE\.TorusGeometry/);
+  assert.match(activityVisuals, /animated\.floaters/);
 });
 
 test('production rewards fly as earned ore and bars into persistent inventory stacks', async () => {
@@ -246,6 +254,10 @@ test('Lower Ways is a resumable generated expedition rather than a landmark patr
   assert.match(game, /checkpoint Lower Ways position/);
   assert.match(html, /id="unlockOverlay"/);
   assert.match(html, /Deepsteel unlocked!/);
+  assert.match(game, /Warp out of cave/);
+  assert.match(game, /if\(caveMode\(\)\)\{exitCave\(\);return\}/);
+  assert.match(game, /if\(warpOut&&caveMode\(\)\)exitCave\(\)/);
+  assert.match(html, /id="unlockReturn">Warp out</);
 });
 
 test('Lower Ways visuals use mobile-budget instancing, authored CC0 rocks, cave atmosphere, and a fog-of-war minimap', () => {
