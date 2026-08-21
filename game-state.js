@@ -2,6 +2,8 @@
 // gameplay. Keep this file free of DOM, Three.js, and scene assumptions so the
 // rules can be moved in small, testable slices.
 
+import { createFreshCaveRun, normalizeCaveRun } from './cave-data.js';
+
 export const CANONICAL_SAVE_KEY = 'emberfall_depths_v4';
 export const COMPATIBLE_SAVE_KEYS = Object.freeze([
   CANONICAL_SAVE_KEY,
@@ -15,6 +17,7 @@ const UPGRADE_IDS = Object.freeze(['speed', 'yield', 'keen', 'crit', 'power']);
 const EXPLORE_AREAS = Object.freeze(['world', 'town', 'cave', 'forest']);
 
 function freshExplore() {
+  const worldSeed = Math.floor(Math.random() * 900000) + 100000;
   return {
     active: true,
     area: 'world',
@@ -31,14 +34,15 @@ function freshExplore() {
     haul: { coins: 0, ore: {} },
     result: null,
     roomSeed: 1,
-    worldSeed: Math.floor(Math.random() * 900000) + 100000,
+    worldSeed,
     worldPos: [0, 7.2],
     townPos: [0, 7.2],
     regionWins: { world: 0, cave: 0, forest: 0 },
     claimed: { town: true, cave: false, forest: false },
     encounterDist: 0,
     nextEncounter: 11,
-    encounters: 0
+    encounters: 0,
+    caveRun: createFreshCaveRun(worldSeed)
   };
 }
 
@@ -143,6 +147,7 @@ function normalizeExplore(rawExplore, raw) {
   explore.combat = explore.combat && typeof explore.combat === 'object'
     ? { ...explore.combat, anim: null, enemyAnim: null, resolving: false, playerHitUntil: 0 }
     : null;
+  explore.caveRun = normalizeCaveRun(explore.caveRun, explore.worldSeed);
   return explore;
 }
 

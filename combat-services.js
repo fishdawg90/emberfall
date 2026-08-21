@@ -217,7 +217,19 @@ function resolveVictory(state, combat, random) {
     explore.regionWins[area] = Math.max(wins, 3);
     if (area === 'cave') {
       state.open = Math.max(state.open, 1);
-      explore.pending = { type: 'secured', icon: '◆', title: 'Lower Ways secured', text: 'The main threat is gone. Greyfen can now work the Deepsteel routes, and this area is available for fast travel.' };
+      if (explore.caveRun) {
+        explore.caveRun.completed = true;
+        explore.caveRun.bossStarted = false;
+      }
+      explore.pending = {
+        type: 'mine-unlocked',
+        icon: '◆',
+        eyebrow: 'LOWER WAYS SECURED',
+        title: 'Deepsteel unlocked!',
+        text: 'Greyfen miners can now reach the Deepsteel seams. Raise Mining to level 5 to work this new depth.',
+        metal: 'deepsteel',
+        rewards: { coins, xp }
+      };
     } else if (area === 'forest') {
       explore.pending = { type: 'secured', icon: '♣', title: 'Whisperwood secured', text: 'The dangerous trail is under control. Whisperwood is now available for fast travel.' };
     } else {
@@ -283,6 +295,7 @@ function finishEnemyTurn(combat, random) {
 
 function loseExploreCombat(state) {
   const explore = state.explore;
+  const defeatedInCave = explore.area === 'cave' || Boolean(explore.caveRun?.active);
   explore.combat = null;
   explore.pending = null;
   explore.area = 'town';
@@ -293,6 +306,16 @@ function loseExploreCombat(state) {
   explore.encounterDist = 0;
   explore.nextEncounter = 11;
   explore.townPos = [0, 12.4];
+  if (explore.caveRun) {
+    explore.caveRun.active = false;
+    explore.caveRun.bossStarted = false;
+    if (defeatedInCave) {
+      // Keep the mapped maze, but make a failed expedition restart from its
+      // entrance instead of letting defeat become a free checkpoint teleport.
+      explore.caveRun.cell = 0;
+      explore.caveRun.position = null;
+    }
+  }
   return { ok: true, defeat: true, area: 'town' };
 }
 

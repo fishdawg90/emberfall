@@ -129,6 +129,9 @@ export function getAreaAtPosition(position) {
 export function isGuardianAvailable(state, landmarkOrId) {
   const landmark = typeof landmarkOrId === 'string' ? getWorldLandmark(landmarkOrId) : landmarkOrId;
   if (!landmark || landmark.kind !== 'region') return false;
+  // The Lower Ways guardian is spatially gated at the end of its explorable
+  // maze; it must never appear from the old three-patrol landmark shortcut.
+  if (landmark.id === 'cave') return false;
   const wins = Number(state?.explore?.regionWins?.[landmark.area]) || 0;
   return wins >= 3 && !state?.explore?.claimed?.[landmark.area];
 }

@@ -86,9 +86,10 @@ The hosted repo is intentionally small:
    buildings, so both access paths call the same rules and save adapter.
 6. **Exploration encounters (integrated).** Distance-based encounters and
    region progression now run from first-person travel. Walking remains
-   tap-to-move; combat pauses travel without replacing the 3D scene. Three
-   region wins reveal the guardian, boss claims unlock the original rewards,
-   and defeat returns the player to Greyfen.
+   tap-to-move; combat pauses travel without replacing the 3D scene. Forest
+   patrol wins still reveal their guardian, while the Lower Ways guardian is
+   reached spatially at the end of its cave. Boss claims unlock the original
+   rewards, and defeat returns the player to Greyfen.
 7. **Card combat overlay (integrated).** The mobile overlay uses the original
    energy, draw/discard, Break, intent, block, enemy turn, XP, loot, equipment
    cards, and boss rules. It resumes compatible saved battles and leaves the
@@ -151,6 +152,19 @@ The hosted repo is intentionally small:
     combat hand replace the previous 5–8px labels and easily clipped card row.
     Smelting and forging services also reject unopened metal tiers at the rules
     layer so UI locks cannot be bypassed by stale state.
+15. **Lower Ways expedition (integrated).** The Lower Ways landmark now opens
+    a deterministic, resumable 11×9 cave generated with an iterative recursive
+    backtracker and lightly braided to reduce frustrating backtracking. A
+    separate furnishing pass places junction landmarks, CC0 Kenney rock props,
+    crystals, mine supports, a guardian chamber, and uncommon one-use
+    Embermoss springs. Tap-to-walk uses the cave graph, the live minimap reveals
+    nearby passages, and the pinned mission routes only to the next unknown
+    frontier rather than spoiling the whole maze. Travel distance triggers the
+    preserved random card battles; victory resumes routing, defeat keeps the
+    map but restarts at the entrance, and the far-chamber Custodian unlocks
+    Deepsteel through a dedicated reward overlay. Instanced floors, walls,
+    ceilings, rubble, crystals, and supports keep the Android draw-call budget
+    bounded.
 
 ## Current working checkpoint
 
@@ -162,7 +176,9 @@ The hosted repo is intentionally small:
   v4/v20.x save bridge.
 - Automated coverage currently exercises save normalization, economy,
   progression, card combat, world gates, shell wiring, mobile budgets, region
-  visual integration, first-person station scenes, and animated enemy models.
+  visual integration, first-person station scenes, animated enemy models, cave
+  solvability, deterministic furnishing, healing, persistence, and guardian
+  gating.
 
 ## Guardrails
 

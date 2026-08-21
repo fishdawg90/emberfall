@@ -3,12 +3,15 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const root = new URL('../', import.meta.url);
-const [html, game, worldVisuals, activityVisuals, combatVisuals] = await Promise.all([
+const [html, game, worldVisuals, activityVisuals, combatVisuals, caveData, caveServices, caveVisuals] = await Promise.all([
   readFile(new URL('index.html', root), 'utf8'),
   readFile(new URL('game.js', root), 'utf8'),
   readFile(new URL('world-visuals.js', root), 'utf8'),
   readFile(new URL('activity-visuals.js', root), 'utf8'),
-  readFile(new URL('combat-visuals.js', root), 'utf8')
+  readFile(new URL('combat-visuals.js', root), 'utf8'),
+  readFile(new URL('cave-data.js', root), 'utf8'),
+  readFile(new URL('cave-services.js', root), 'utf8'),
+  readFile(new URL('cave-visuals.js', root), 'utf8')
 ]);
 
 test('hosted shell retains mobile navigation, camera direction, assets, roads, and debug report', () => {
@@ -24,7 +27,7 @@ test('hosted shell retains mobile navigation, camera direction, assets, roads, a
 test('migrated gameplay dock is loaded without replacing the Three.js runtime', () => {
   assert.match(html, /class="gameDock"/);
   assert.match(html, /id="gamePanel"/);
-  assert.match(html, /game\.js\?v=14/);
+  assert.match(html, /game\.js\?v=15/);
   assert.match(game, /createGameUI/);
   assert.match(game, /new THREE\.WebGLRenderer/);
   assert.match(game, /saveGameState/);
@@ -219,10 +222,38 @@ test('quick intro and mission journal connect the full gameplay loop', async () 
   assert.match(game, /recordTownArrival/);
   assert.match(game, /journeyWorldAction/);
   assert.match(journey, /visit-frostmere/);
-  assert.match(journey, /patrol-cave/);
+  assert.match(journey, /explore-lower-ways/);
   assert.match(journey, /find-mine/);
   assert.match(journey, /getGreyfenTasks/);
   assert.match(ui, /route-service/);
+});
+
+test('Lower Ways is a resumable generated expedition rather than a landmark patrol shortcut', () => {
+  assert.match(caveData, /Iterative recursive-backtracker/);
+  assert.match(caveData, /Light braiding/);
+  assert.match(caveData, /chooseFurnishings/);
+  assert.match(caveServices, /useNearbyCaveHealing/);
+  assert.match(caveServices, /markCaveBossStarted/);
+  assert.match(game, /startLowerWays/);
+  assert.match(game, /routeCaveDeeper/);
+  assert.match(game, /Encounter cleared · deeper route resumed/);
+  assert.match(game, /enemyId:'custodian'/);
+  assert.match(game, /checkpoint Lower Ways position/);
+  assert.match(html, /id="unlockOverlay"/);
+  assert.match(html, /Deepsteel unlocked!/);
+});
+
+test('Lower Ways visuals use mobile-budget instancing, authored CC0 rocks, cave atmosphere, and a fog-of-war minimap', () => {
+  assert.match(caveVisuals, /new THREE\.InstancedMesh/);
+  assert.match(caveVisuals, /lower-ways-rock-walls/);
+  assert.match(caveVisuals, /lower-ways-instanced-rubble/);
+  assert.match(caveVisuals, /lower-ways-mine-supports/);
+  assert.match(caveVisuals, /addAuthoredRockLandmarks/);
+  assert.match(caveVisuals, /drawCaveMiniMap/);
+  assert.match(caveVisuals, /claimedHeals/);
+  assert.match(game, /applyCaveAtmosphere/);
+  assert.match(game, /caveWorld\?\.addRockAsset\(assets\.rock\)/);
+  assert.match(game, /DANGER · \$\{gameState\.explore\.hp\}/);
 });
 
 test('phone UI keeps locked progression visible and raises gameplay text sizes', async () => {

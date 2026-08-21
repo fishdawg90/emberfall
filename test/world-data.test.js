@@ -51,7 +51,7 @@ test('continuous world areas are safe in towns and region-specific near guardian
   assert.equal(getAreaAtPosition({ x: 0, z: 260 }).area, 'world');
 });
 
-test('guardian and fast-travel gates follow original three-win region claims', () => {
+test('forest guardian keeps its three-win gate while the cave guardian is maze-gated', () => {
   const state = createFreshState();
   assert.deepEqual(getFastTravelLandmarks(state).map(landmark => landmark.id), ['town']);
   assert.deepEqual(getKnownLandmarks(state).map(landmark => landmark.id), ['town']);
@@ -63,6 +63,8 @@ test('guardian and fast-travel gates follow original three-win region claims', (
   assert.deepEqual(getKnownLandmarks(state).map(landmark => landmark.id), ['town', 'frostmere']);
   state.journey.towns.frostmere = true;
   assert.deepEqual(getKnownLandmarks(state).map(landmark => landmark.id), ['town', 'frostmere', 'cave']);
+  state.explore.regionWins.cave = 3;
+  assert.equal(isGuardianAvailable(state, 'cave'), false);
   assert.equal(isGuardianAvailable(state, 'forest'), false);
   state.explore.claimed.cave = true;
   assert.deepEqual(getKnownLandmarks(state).map(landmark => landmark.id), ['town', 'frostmere', 'forest', 'cave']);

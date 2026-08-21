@@ -124,7 +124,8 @@ test('cave boss victory secures the region and opens Deepsteel progression', () 
   assert.equal(state.explore.claimed.cave, true);
   assert.equal(state.explore.regionWins.cave, 3);
   assert.equal(state.open, 1);
-  assert.equal(state.explore.pending.title, 'Lower Ways secured');
+  assert.equal(state.explore.pending.title, 'Deepsteel unlocked!');
+  assert.equal(state.explore.pending.type, 'mine-unlocked');
 });
 
 test('defeat returns the hero to Greyfen with restored expedition HP', () => {
