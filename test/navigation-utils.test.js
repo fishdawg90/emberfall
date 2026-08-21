@@ -3,10 +3,17 @@ import assert from 'node:assert/strict';
 
 import {
   dampAngle,
+  routeDestinationReached,
   routeHeading,
   routeLookAhead,
   smoothNavigationPath
 } from '../navigation-utils.js';
+
+test('a destination cannot activate while the player is still at a blocking building', () => {
+  const lowerWays = { x: 203, z: 158 };
+  assert.equal(routeDestinationReached({ x: 12, z: 8 }, lowerWays), false);
+  assert.equal(routeDestinationReached({ x: 202.4, z: 157.5 }, lowerWays), true);
+});
 
 test('saw-tooth diagonal routes collapse into long clear segments', () => {
   const path = [

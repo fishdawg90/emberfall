@@ -56,6 +56,8 @@ export function leaveLowerWays(state) {
   if (!run.active) return { ok: false, code: 'not-in-cave', message: 'You are not in the Lower Ways.' };
   run.active = false;
   run.bossStarted = false;
+  run.runCards = [];
+  run.pendingDraft = null;
   state.explore.area = 'world';
   return { ok: true, returnWorldPos: run.returnWorldPos ? [...run.returnWorldPos] : null };
 }
@@ -68,12 +70,15 @@ export function updateCavePosition(state, position) {
   run.cell = cell.index;
   run.position = [Number(position.x.toFixed(2)), Number(position.z.toFixed(2))];
   run.discovered = [...new Set([...run.discovered, cell.index])].sort((a, b) => a - b);
+  const cache = useNearbyCaveCoinCache(state, position);
+  if (cache.claimed) state.explore.lastCaveFind = { type: 'coins', amount: cache.coins, cell: cache.cell };
   return {
     ok: true,
     run,
     layout,
     cell,
     discovered: !discoveredBefore.has(cell.index),
+    cache: cache.claimed ? cache : null,
     atGoal: cell.index === layout.goal
   };
 }
@@ -94,6 +99,20 @@ export function useNearbyCaveHealing(state, position) {
   state.explore.hp = Math.min(maxHp, state.explore.hp + amount);
   run.claimedHeals.push(cell.index);
   return { ok: true, healed: true, amount: state.explore.hp - before, hp: state.explore.hp, maxHp, cell: cell.index };
+}
+
+export function useNearbyCaveCoinCache(state, position) {
+  const run = ensureCaveRun(state);
+  const layout = layoutFor(run);
+  const cell = caveWorldToCell(layout, position);
+  if (!layout.furnishings.coins.includes(cell.index) || run.claimedCoins.includes(cell.index)) {
+    return { ok: true, claimed: false, cell: cell.index };
+  }
+  const coins = 9 + ((run.seed ^ (cell.index * 31)) >>> 0) % 9;
+  state.coins += coins;
+  state.explore.haul.coins += coins;
+  run.claimedCoins.push(cell.index);
+  return { ok: true, claimed: true, coins, cell: cell.index };
 }
 
 export function markCaveBossStarted(state) {

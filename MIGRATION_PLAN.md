@@ -173,6 +173,21 @@ The hosted repo is intentionally small:
     line-of-sight smoothing to remove diagonal saw-tooth movement; cave routes
     remain on their legal maze graph. Drag-look remains fully available during
     autowalk and eases back toward a route look-ahead when the touch is released.
+17. **Lower Ways deckbuilding and balance pass (integrated).** Enemy damage no
+    longer receives overlapping travel and battle scaling. Armour now reduces
+    every incoming hit, reinforces Block, and gains a four-piece Iron bonus;
+    the projected HP loss is shown beside enemy intent. Sidestep makes avoidance
+    available in the base deck, while nine strategic expedition cards add
+    Evade, Weaken, retained Block, Block conversion, multi-hit, exhaust, energy,
+    and Broken-target payoffs. Every normal cave win offers three temporary
+    card choices, all of which disappear on exit, defeat, or guardian victory.
+    Deterministic Embermoss springs and gold caches reward maze exploration.
+    Later Iron armour consumes 74 bars and is now an explicit preparation
+    objective; compatible saves raise already-owned Iron pieces to the same
+    quality-aware stat floor. Ore and bar stockpiles receive visible soft-cap efficiency so
+    long idle sessions slow until the player forges or sells. Finally, routed
+    destinations verify physical arrival and replan collisions, preventing a
+    Greyfen building collision from remotely entering the Lower Ways.
 
 ## Current working checkpoint
 
@@ -185,8 +200,9 @@ The hosted repo is intentionally small:
 - Automated coverage currently exercises save normalization, economy,
   progression, card combat, world gates, shell wiring, mobile budgets, region
   visual integration, first-person station scenes, animated enemy models, cave
-  solvability, deterministic furnishing, healing, persistence, and guardian
-  gating.
+  solvability, deterministic furnishing, healing and coin caches, temporary
+  run-card persistence/cleanup, Iron mitigation, stockpile saturation,
+  destination arrival validation, persistence, and guardian gating.
 
 ## Guardrails
 

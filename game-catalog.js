@@ -11,11 +11,11 @@ export const METALS = Object.freeze([
 
 export const RECIPES = Object.freeze([
   { id: 'is', m: 'iron', type: 'weapon', name: 'Iron Longsword', bars: 3, req: 1, atk: 4, def: 0, val: 30 },
-  { id: 'ih', m: 'iron', type: 'hands', name: 'Iron Gauntlets', bars: 2, req: 2, atk: 1, def: 1, val: 22 },
-  { id: 'ihelm', m: 'iron', type: 'head', name: 'Iron Helm', bars: 3, req: 3, atk: 0, def: 2, val: 30 },
-  { id: 'ib', m: 'iron', type: 'feet', name: 'Iron Boots', bars: 3, req: 4, atk: 0, def: 2, val: 34 },
-  { id: 'il', m: 'iron', type: 'legs', name: 'Iron Greaves', bars: 4, req: 5, atk: 0, def: 3, val: 44 },
-  { id: 'ia', m: 'iron', type: 'chest', name: 'Iron Brigandine', bars: 5, req: 6, atk: 0, def: 5, val: 60 },
+  { id: 'ih', m: 'iron', type: 'hands', name: 'Iron Gauntlets', bars: 6, req: 2, atk: 1, def: 2, val: 48 },
+  { id: 'ihelm', m: 'iron', type: 'head', name: 'Iron Helm', bars: 10, req: 3, atk: 0, def: 4, val: 82 },
+  { id: 'ib', m: 'iron', type: 'feet', name: 'Iron Boots', bars: 12, req: 4, atk: 0, def: 4, val: 96 },
+  { id: 'il', m: 'iron', type: 'legs', name: 'Iron Greaves', bars: 18, req: 5, atk: 0, def: 6, val: 145 },
+  { id: 'ia', m: 'iron', type: 'chest', name: 'Iron Brigandine', bars: 28, req: 6, atk: 0, def: 9, val: 230 },
   { id: 'ds', m: 'deepsteel', type: 'weapon', name: 'Deepsteel Blade', bars: 3, req: 4, atk: 8, def: 0, val: 105 },
   { id: 'dh', m: 'deepsteel', type: 'hands', name: 'Deepsteel Gauntlets', bars: 2, req: 5, atk: 2, def: 2, val: 78 },
   { id: 'dhelm', m: 'deepsteel', type: 'head', name: 'Deepsteel Helm', bars: 3, req: 6, atk: 0, def: 4, val: 105 },
@@ -67,10 +67,10 @@ export const EQUIPMENT_SLOTS = Object.freeze([
 ]);
 
 export const EXPLORE_ENEMIES = Object.freeze({
-  scavenger: { id: 'scavenger', name: 'Tunnel Scavenger', icon: '◖', hp: 24, guard: 5, dmg: 7, desc: 'Quick, brittle and eager to strike.' },
-  stonehorn: { id: 'stonehorn', name: 'Stonehorn', icon: '◆', hp: 36, guard: 8, dmg: 10, desc: 'Slow armour with a punishing charge.' },
-  crawler: { id: 'crawler', name: 'Glass Crawler', icon: '✣', hp: 29, guard: 6, dmg: 5, hits: 2, desc: 'A shard-backed thing that attacks twice.' },
-  custodian: { id: 'custodian', name: 'Buried Custodian', icon: '✦', hp: 52, guard: 10, dmg: 11, desc: 'The old gatekeeper at the end of the route.' },
+  scavenger: { id: 'scavenger', name: 'Tunnel Scavenger', icon: '◖', hp: 24, guard: 5, dmg: 5, desc: 'Quick, brittle and eager to strike.' },
+  stonehorn: { id: 'stonehorn', name: 'Stonehorn', icon: '◆', hp: 36, guard: 8, dmg: 7, desc: 'Slow armour with a punishing charge.' },
+  crawler: { id: 'crawler', name: 'Glass Crawler', icon: '✣', hp: 29, guard: 6, dmg: 3, hits: 2, desc: 'A shard-backed thing that attacks twice.' },
+  custodian: { id: 'custodian', name: 'Buried Custodian', icon: '✦', hp: 68, guard: 14, dmg: 9, desc: 'The old gatekeeper at the end of the route.' },
   tunnelmauler: { id: 'tunnelmauler', name: 'Tunnel Mauler', icon: '◆', hp: 48, guard: 10, dmg: 7, desc: 'A plated burrower blocking the flooded galleries.' },
   glasswarden: { id: 'glasswarden', name: 'Glass Warden', icon: '✦', hp: 88, guard: 15, dmg: 11, desc: 'A crystalline keeper reflecting every careless strike.' },
   abysssentinel: { id: 'abysssentinel', name: 'Abyss Sentinel', icon: '✧', hp: 155, guard: 22, dmg: 17, desc: 'The last watcher beneath an impossible sky.' }
@@ -87,7 +87,19 @@ export const EXPLORE_CARDS = Object.freeze({
   sunder: { id: 'sunder', name: 'Sunder', icon: '✣', cost: 1, kind: 'breaker', dmg: 5, brk: 5, text: 'Deal {dmg} damage · {brk} Break.' },
   silvercut: { id: 'silvercut', name: 'Silver Arc', icon: '☾', cost: 1, kind: 'attack', dmg: 9, brk: 3, text: 'Deal {dmg} damage · {brk} Break.' },
   aetherbreak: { id: 'aetherbreak', name: 'Aether Break', icon: '✦', cost: 2, kind: 'breaker', dmg: 13, brk: 4, text: 'Deal {dmg} damage · {brk} Break.' },
-  driving: { id: 'driving', name: 'Driving Blow', icon: '↯', cost: 2, kind: 'breaker', dmg: 7, brk: 4, text: 'Deal {dmg} damage · {brk} Break.' }
+  driving: { id: 'driving', name: 'Driving Blow', icon: '↯', cost: 2, kind: 'breaker', dmg: 7, brk: 4, text: 'Deal {dmg} damage · {brk} Break.' },
+  sidestep: { id: 'sidestep', name: 'Sidestep', icon: '➶', cost: 1, kind: 'utility', evade: 1, draw: 1, text: 'Evade the next hit · draw 1.' },
+  deflect: { id: 'deflect', name: 'Deflect', icon: '◈', cost: 1, kind: 'guard', block: 5, evade: 1, text: 'Gain {block} Block · Evade 1 hit.' },
+  shatter: { id: 'shatter', name: 'Shatter', icon: '✹', cost: 2, kind: 'attack', dmg: 8, brokenBonus: 8, text: 'Deal {dmg} damage · +8 while Broken.' },
+  shieldbash: { id: 'shieldbash', name: 'Shield Bash', icon: '⬢', cost: 1, kind: 'breaker', brk: 2, blockDamage: .75, text: '{brk} Break · deal 75% of your Block.' },
+  hobble: { id: 'hobble', name: 'Hobble', icon: '⌁', cost: 1, kind: 'utility', dmg: 3, brk: 2, weak: 2, text: '{dmg} damage · {brk} Break · Weaken 2.' },
+  rally: { id: 'rally', name: 'Hold Fast', icon: '♜', cost: 1, kind: 'guard', block: 7, retainBlock: .5, text: 'Gain {block} Block · retain half next turn.' },
+  exploit: { id: 'exploit', name: 'Exploit', icon: '⚡', cost: 1, kind: 'attack', dmg: 6, brokenEnergy: 1, text: 'Deal {dmg} damage · refund 1 Energy if Broken.' },
+  flurry: { id: 'flurry', name: 'Flurry', icon: '≋', cost: 1, kind: 'attack', dmg: 3, hits: 2, text: 'Deal {dmg} damage twice.' },
+  focus: { id: 'focus', name: 'Battle Focus', icon: '◎', cost: 0, kind: 'utility', draw: 2, exhaust: true, text: 'Draw 2 · Exhaust this battle.' },
+  bulwark: { id: 'bulwark', name: 'Bulwark', icon: '▰', cost: 2, kind: 'guard', block: 12, retainBlock: .5, text: 'Gain {block} Block · retain half next turn.' }
 });
+
+export const CAVE_REWARD_CARD_IDS = Object.freeze(['deflect', 'shatter', 'shieldbash', 'hobble', 'rally', 'exploit', 'flurry', 'focus', 'bulwark']);
 
 export const STARTER_DECK = Object.freeze(['slash', 'slash', 'slash', 'splitter', 'splitter', 'guard', 'guard', 'guard', 'feint', 'heavy']);

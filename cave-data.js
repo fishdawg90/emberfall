@@ -76,18 +76,28 @@ function chooseFurnishings(layout, random) {
   const deadEnds = layout.cells
     .filter(cell => cell.degree === 1 && !reserved.has(cell.index) && cell.distance >= 5)
     .sort((a, b) => b.distance - a.distance);
-  const heals = [];
-  for (const cell of deadEnds) {
-    // A spring is uncommon at any one dead-end, but a full maze usually gives
-    // the player a fair chance of discovering one without making it guaranteed.
-    if (heals.length < 2 && random() < 0.16) heals.push(cell.index);
+  // Every expedition has recovery, but the springs still reward exploration:
+  // one is deep in the maze and the other sits on a different dead-end branch.
+  const heals = deadEnds.length ? [deadEnds[0].index] : [];
+  if (deadEnds.length > 2) {
+    const offset = 1 + Math.floor(random() * Math.max(1, deadEnds.length - 2));
+    if (!heals.includes(deadEnds[offset].index)) heals.push(deadEnds[offset].index);
+  }
+  const cacheCandidates = [
+    ...deadEnds.filter(cell => !heals.includes(cell.index)),
+    ...layout.cells.filter(cell => cell.distance >= 6 && cell.degree === 2 && !reserved.has(cell.index))
+  ];
+  const coins = [];
+  for (const cell of cacheCandidates) {
+    if (coins.length >= 4) break;
+    if (!coins.includes(cell.index) && !heals.includes(cell.index)) coins.push(cell.index);
   }
   const vistas = layout.cells
     .filter(cell => cell.degree >= 3 && cell.index !== layout.start && cell.index !== layout.goal)
     .sort((a, b) => b.distance - a.distance)
     .slice(0, 4)
     .map(cell => cell.index);
-  return { heals, vistas };
+  return { heals, coins, vistas };
 }
 
 export function createCaveLayout(seed, options = {}) {
@@ -245,6 +255,9 @@ export function createFreshCaveRun(worldSeed = 1) {
     cell: 0,
     discovered: [0],
     claimedHeals: [],
+    claimedCoins: [],
+    runCards: [],
+    pendingDraft: null,
     bossStarted: false,
     returnWorldPos: null
   };
@@ -275,6 +288,11 @@ export function normalizeCaveRun(value, worldSeed = 1) {
     cell,
     discovered: uniqueCells([layout.start, ...uniqueCells(source.discovered), cell]),
     claimedHeals: uniqueCells(source.claimedHeals),
+    claimedCoins: uniqueCells(source.claimedCoins),
+    runCards: (Array.isArray(source.runCards) ? source.runCards : []).filter(card => typeof card === 'string').slice(0, 12),
+    pendingDraft: source.pendingDraft && Array.isArray(source.pendingDraft.choices)
+      ? { ...source.pendingDraft, choices: source.pendingDraft.choices.filter(card => typeof card === 'string').slice(0, 3) }
+      : null,
     bossStarted: Boolean(source.bossStarted),
     returnWorldPos
   };

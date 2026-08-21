@@ -27,7 +27,7 @@ test('hosted shell retains mobile navigation, camera direction, assets, roads, a
 test('migrated gameplay dock is loaded without replacing the Three.js runtime', () => {
   assert.match(html, /class="gameDock"/);
   assert.match(html, /id="gamePanel"/);
-  assert.match(html, /game\.js\?v=17/);
+  assert.match(html, /game\.js\?v=18/);
   assert.match(game, /createGameUI/);
   assert.match(game, /new THREE\.WebGLRenderer/);
   assert.match(game, /saveGameState/);

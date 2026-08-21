@@ -15,6 +15,7 @@ import {
   getCaveRunView,
   markCaveBossStarted,
   updateCavePosition,
+  useNearbyCaveCoinCache,
   useNearbyCaveHealing
 } from '../cave-services.js';
 
@@ -71,6 +72,23 @@ test('healing growths are deterministic, one-use, and do not disappear while hea
   assert.equal(healed.healed, true);
   assert.equal(healed.amount >= 9, true);
   assert.equal(useNearbyCaveHealing(state, position).healed, false);
+});
+
+test('every Lower Ways run contains healing and one-use coin discoveries', () => {
+  const state = createFreshState();
+  const view = getCaveRunView(state);
+  assert.equal(view.layout.furnishings.heals.length >= 1, true);
+  assert.equal(view.layout.furnishings.coins.length >= 3, true);
+  const cache = view.layout.furnishings.coins[0];
+  const position = caveCellToWorld(view.layout, cache);
+  enterLowerWays(state, [203, 158]);
+  const before = state.coins;
+  const found = useNearbyCaveCoinCache(state, position);
+  assert.equal(found.claimed, true);
+  assert.equal(state.coins, before + found.coins);
+  assert.equal(useNearbyCaveCoinCache(state, position).claimed, false);
+  const normalized = normalizeSave(state);
+  assert.equal(normalized.explore.caveRun.claimedCoins.includes(cache), true);
 });
 
 test('the cave guardian can only begin at the maze goal', () => {

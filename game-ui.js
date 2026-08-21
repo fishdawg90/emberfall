@@ -1,5 +1,5 @@
 import { ACTIVITIES, EQUIPMENT_SLOTS, METALS, RECIPES, TOWN_PROJECTS, UPGRADES } from './game-catalog.js';
-import { endExploreTurn, getCombatView, playExploreCard, startExploreCombat } from './combat-services.js';
+import { chooseCaveCardReward, endExploreTurn, getCaveCardDraft, getCombatView, playExploreCard, skipCaveCardReward, startExploreCombat } from './combat-services.js';
 import { createActivityVisuals } from './activity-visuals.js';
 import { cardArtMarkup, combatSceneryMarkup, enemyFigureMarkup, playerWeaponMarkup } from './combat-visuals.js';
 import { canChallengeMineGate, getActiveMission, getGreyfenTasks, getInterfaceUnlocks, getMetalUnlockState, getMissionJournal, getMineGateLocation, pinMission, recordTradeCoins } from './journey-services.js';
@@ -11,6 +11,7 @@ import {
   getEquipment,
   getMaterialRows,
   getOpportunitySeconds,
+  getProductionEfficiency,
   getRadiantChance,
   getSmelterMultiplier,
   getTownCost,
@@ -157,13 +158,19 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
   }
 
   function renderJourney() {
-    currentMission = getActiveMission(getState());
+    const state = getState();
+    const caveFind = state.explore?.lastCaveFind;
+    if (caveFind?.type === 'coins') {
+      state.explore.lastCaveFind = null;
+      notify(`Found an old wayfarer cache · +${caveFind.amount} coin`, 'gold');
+    }
+    currentMission = getActiveMission(state);
     if (!missionTracker) return;
     missionTracker.classList.toggle('empty', !currentMission);
     missionTracker.dataset.mission = currentMission?.id || '';
     missionTitle.textContent = currentMission?.title || 'All missions complete';
     missionRoute.textContent = currentMission?.action?.button || 'OPEN';
-    missionRoute.disabled = !currentMission || Boolean(getState().explore?.combat);
+    missionRoute.disabled = !currentMission || Boolean(state.explore?.combat);
   }
 
   function showIntro(force = false) {
@@ -297,6 +304,7 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
         ? `<section class="resourcePicker"><div class="sectionHeading"><strong>Choose metal</strong><span>Ore → bars</span></div><div class="unlockGrid">${metalProgress.map(progress => metalChoice(progress, 'smelting', progress.metal.id === state.smelt)).join('')}</div></section>`
         : '';
     const facilityMultiplier = state.active === 'smelting' ? getSmelterMultiplier(state, material.id) : 1;
+    const productionEfficiency = getProductionEfficiency(state);
     const materialLine = state.active === 'mining'
       ? `${state.inv[`${material.id}Ore`]} ${material.ore}`
       : state.active === 'smelting'
@@ -324,7 +332,7 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
       ${selectors}
       <section class="gameCard heroCard" style="--metal:${material.color}">
         <div><small>CURRENT WORK</small><h3>${activity.icon} ${activity.name}</h3><p>${materialLine}</p></div>
-        <span>${cycle.toFixed(1)}s cycle</span>
+        <span>${cycle.toFixed(1)}s cycle${productionEfficiency < .98 ? ` · ${Math.round(productionEfficiency * 100)}% yield` : ''}</span>
         <div class="productionTrack"><i id="productionProgress"></i></div>
         <div class="gameActions">
           ${button(state.running ? 'Stop work' : `Start ${activity.name}`, 'toggle-production', '', false, state.running ? 'danger' : 'primary')}
@@ -334,7 +342,7 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
       ${skillStrip(state.active)}
       ${gateCard}
       <details class="compactDetails"><summary>Upgrades <b>${affordableUpgrades ? `${affordableUpgrades} ready` : `${totalRanks} ranks`}</b></summary><div class="serviceList">${upgrades}</div></details>
-      ${compactHelp('How work connects', 'Ore becomes bars, bars become gear. Work keeps running while you explore.')}`;
+      ${compactHelp('How work connects', productionEfficiency < .98 ? 'Your stockpile is crowded, so passive yield is slowing. Forge or sell materials to restore full output.' : 'Ore becomes bars, bars become gear. Work keeps running while you explore.')}`;
   }
 
   function renderForge() {
@@ -366,7 +374,7 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
     const readyRecipes = allRecipes.filter(recipe => state.skills.forging.l >= recipe.req).map(recipeMarkup).join('');
     const lockedRecipes = allRecipes.filter(recipe => state.skills.forging.l < recipe.req).map(recipeMarkup).join('');
     const metal = knownMetals.find(entry => entry.id === forgeMetal) || knownMetals[0];
-    return `<div class="forgeSummary"><span>${metal.icon} ${state.inv[`${metal.id}Bar`]} bars</span>${skillStrip('forging')}</div><div class="forgeMetalGrid">${metalChoices}</div><div class="recipeList">${readyRecipes}</div>${lockedRecipes ? `<details class="compactDetails"><summary>Locked recipes <b>${allRecipes.length - allRecipes.filter(recipe => state.skills.forging.l >= recipe.req).length}</b></summary><div class="recipeList">${lockedRecipes}</div></details>` : ''}${compactHelp('Gear and cards', 'Weapons improve attack cards. Armour adds health and stronger Block.')}`;
+    return `<div class="forgeSummary"><span>${metal.icon} ${state.inv[`${metal.id}Bar`]} bars</span>${skillStrip('forging')}</div><div class="forgeMetalGrid">${metalChoices}</div><div class="recipeList">${readyRecipes}</div>${lockedRecipes ? `<details class="compactDetails"><summary>Locked recipes <b>${allRecipes.length - allRecipes.filter(recipe => state.skills.forging.l >= recipe.req).length}</b></summary><div class="recipeList">${lockedRecipes}</div></details>` : ''}${compactHelp('Gear and cards', 'Weapons improve attacks. Armour adds HP, Block, and per-hit damage reduction; four Iron armour pieces grant a set bonus.')}`;
   }
 
   function renderGear() {
@@ -433,16 +441,29 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
     const state = getState();
     const liveView = getCombatView(state);
     const view = liveView || combatOutro?.view;
+    const draft = !combatOutro && getCaveCardDraft(state);
     if (!view) {
+      if (draft) {
+        activityVisuals.hide();
+        panel.classList.remove('show');
+        panel.setAttribute('aria-hidden', 'true');
+        const choices = draft.choices.map(card => `<button class="combatCard draftCard kind-${card.kind}" data-draft-card="${card.id}"><span class="combatCardCost">${card.cost}</span>${cardArtMarkup(card.id)}<strong>${card.name}</strong><small>${card.text}</small><em>${card.kind}</em></button>`).join('');
+        combatPanel.innerHTML = `<section class="cardDraft"><small>LOWER WAYS · BATTLE WON</small><h2>Choose a card for this run</h2><p>It joins every deck until you leave, fall, or defeat the guardian.</p><div class="draftDeck">Run deck +${draft.deckSize}</div><div class="draftChoices">${choices}</div><button class="draftSkip" data-draft-skip>Take 6 coin instead</button></section>`;
+        combatPanel.classList.add('show', 'drafting');
+        combatPanel.setAttribute('aria-hidden', 'false');
+        return;
+      }
+      combatPanel.classList.remove('drafting');
       combatPanel.classList.remove('show');
       combatPanel.setAttribute('aria-hidden', 'true');
       combatPanel.replaceChildren();
       return;
     }
+    combatPanel.classList.remove('drafting');
     activityVisuals.hide();
     panel.classList.remove('show');
     panel.setAttribute('aria-hidden', 'true');
-    const { combat, enemy, intent, cards } = view;
+    const { combat, enemy, intent, cards, bonuses } = view;
     const outro = !liveView && Boolean(combatOutro);
     const enemyHp = Math.max(0, combat.hp / combat.maxHp * 100);
     const guard = Math.max(0, combat.guard / combat.guardMax * 100);
@@ -457,7 +478,14 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
     const area = ['forest', 'cave', 'town', 'world'].includes(combat.origin?.area) ? combat.origin.area : 'world';
     const enemyFigure = enemyFigureMarkup(enemy.id, { boss: combat.boss, broken: combat.broken, effect: combatFx.enemy });
     const weaponFigure = playerWeaponMarkup({ effect: combatFx.weapon, defeated: combatOutro?.type === 'defeat' });
-    combatPanel.innerHTML = `<div class="combatTop"><div class="combatEnemy"><div class="combatEnemyHead"><strong>${combat.boss ? '☇ ' : ''}${enemy.name}</strong><span>${combat.hp}/${combat.maxHp} HP</span></div><div class="combatBars"><div class="combatBar hp"><i style="width:${enemyHp}%"></i><em>HEALTH</em></div><div class="combatBar guard"><i style="width:${guard}%"></i><em>${combat.broken ? 'BROKEN' : `${combat.guard}/${combat.guardMax} BREAK GUARD`}</em></div></div></div><div class="combatIntent"><small>${outro ? 'RESULT' : 'INTENT'}</small><strong>${outro ? (combatOutro.type === 'victory' ? 'Defeated' : 'Overwhelmed') : combat.broken ? 'Staggered' : intent.name}</strong><span>${outro ? (combatOutro.type === 'victory' ? 'Rewards secured' : 'Returning to Greyfen') : combat.broken ? 'Attack cancelled' : intent.text}</span></div></div><div class="combatArena area-${area} ${combatFx.player}">${combatSceneryMarkup(area)}${enemyFigure}${weaponFigure}${combatFx.impact ? `<strong class="combatImpact">${escapeHtml(combatFx.impact)}</strong>` : ''}</div><div class="combatBottom"><div class="combatPlayer"><div class="combatPlayerCard"><div class="combatPlayerHead"><strong>Hero · Turn ${combat.turn}</strong><span>${currentPlayerHp}/${expeditionMaxHp} HP${combat.block ? ` · ${combat.block} Block` : ''}</span></div><div class="combatBar player"><i style="width:${playerHp}%"></i><em>EXPEDITION HEALTH</em></div></div><div class="combatEnergy"><b>${combat.energy}</b> ENERGY</div></div><div class="combatLog">${escapeHtml(combat.log)}${state.explore.encounters < 2 ? '<small>Break the blue guard to cancel the shown enemy intent.</small>' : ''}</div><div class="combatHand">${hand}</div><button class="combatEnd" data-combat-end ${outro || combat.resolving ? 'disabled' : ''}>${outro ? 'Resolving battle…' : 'End turn · enemy acts'}</button></div>`;
+    if (!outro && !combat.broken) {
+      const hitsAfterEvade = Math.max(0, intent.hits - (combat.evade || 0));
+      const perHit = Math.max(0, intent.dmg - (combat.enemyWeak || 0) - (bonuses?.armour || 0));
+      const projected = Math.max(0, perHit * hitsAfterEvade - combat.block);
+      intent.text = `${intent.text} · ${projected} reaches HP`;
+    }
+    const statuses = [bonuses?.armour ? `♜ ${bonuses.armour} ARMOUR / HIT` : '', combat.evade ? `➶ EVADE ${combat.evade}` : '', combat.enemyWeak ? `⌁ ENEMY -${combat.enemyWeak}` : '', combat.retainBlock ? '▰ RETAIN BLOCK' : ''].filter(Boolean).map(status => `<b>${status}</b>`).join('');
+    combatPanel.innerHTML = `<div class="combatTop"><div class="combatEnemy"><div class="combatEnemyHead"><strong>${combat.boss ? '☇ ' : ''}${enemy.name}</strong><span>${combat.hp}/${combat.maxHp} HP</span></div><div class="combatBars"><div class="combatBar hp"><i style="width:${enemyHp}%"></i><em>HEALTH</em></div><div class="combatBar guard"><i style="width:${guard}%"></i><em>${combat.broken ? 'BROKEN' : `${combat.guard}/${combat.guardMax} BREAK GUARD`}</em></div></div></div><div class="combatIntent"><small>${outro ? 'RESULT' : 'INTENT'}</small><strong>${outro ? (combatOutro.type === 'victory' ? 'Defeated' : 'Overwhelmed') : combat.broken ? 'Staggered' : intent.name}</strong><span>${outro ? (combatOutro.type === 'victory' ? 'Rewards secured' : 'Returning to Greyfen') : combat.broken ? 'Attack cancelled' : intent.text}</span></div></div><div class="combatArena area-${area} ${combatFx.player}">${combatSceneryMarkup(area)}${enemyFigure}${weaponFigure}${combatFx.impact ? `<strong class="combatImpact">${escapeHtml(combatFx.impact)}</strong>` : ''}</div><div class="combatBottom"><div class="combatPlayer"><div class="combatPlayerCard"><div class="combatPlayerHead"><strong>Hero · Turn ${combat.turn}</strong><span>${currentPlayerHp}/${expeditionMaxHp} HP${combat.block ? ` · ${combat.block} Block` : ''}</span></div><div class="combatBar player"><i style="width:${playerHp}%"></i><em>EXPEDITION HEALTH</em></div></div><div class="combatEnergy"><b>${combat.energy}</b> ENERGY</div></div>${statuses ? `<div class="combatStatuses">${statuses}</div>` : ''}<div class="combatLog">${escapeHtml(combat.log)}${state.explore.encounters < 2 ? '<small>Break cancels the attack. Armour reduces each hit. Evade cancels one hit.</small>' : ''}</div><div class="combatHand">${hand}</div><button class="combatEnd" data-combat-end ${outro || combat.resolving ? 'disabled' : ''}>${outro ? 'Resolving battle…' : 'End turn · enemy acts'}</button></div>`;
     combatPanel.classList.add('show');
     combatPanel.setAttribute('aria-hidden', 'false');
   }
@@ -662,6 +690,22 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
     if (target && !target.disabled) onAction(target.dataset.action, target.dataset.value);
   });
   combatPanel.addEventListener('click', event => {
+    const drafted = event.target.closest('[data-draft-card]');
+    if (drafted) {
+      const result = chooseCaveCardReward(getState(), drafted.dataset.draftCard);
+      if (!result.ok) return notify(result.message, 'bad');
+      commitAction(`add temporary ${result.card.id} card`);
+      notify(`${result.card.name} added for this expedition`, 'gold');
+      return;
+    }
+    const skipped = event.target.closest('[data-draft-skip]');
+    if (skipped) {
+      const result = skipCaveCardReward(getState());
+      if (!result.ok) return notify(result.message, 'bad');
+      commitAction('skip temporary card reward');
+      notify('+6 coin · run deck unchanged', 'gold');
+      return;
+    }
     const card = event.target.closest('[data-combat-card]');
     if (card && !card.disabled) {
       const viewBefore = getCombatView(getState());
@@ -684,11 +728,11 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
       if (result.defeat && viewBefore) {
         showCombatEffect({ enemy: 'fx-attack', player: 'player-hit', weapon: 'player-hit', impact: 'DEFEAT', duration: 820, outro: outroSnapshot(viewBefore, { type: 'defeat', log: 'The hero is overwhelmed and retreats to Greyfen.' }) });
       } else if (result.staggered) showCombatEffect({ enemy: 'fx-break', impact: 'STAGGER', duration: 580 });
-      else showCombatEffect({ enemy: 'fx-attack', player: result.taken ? 'player-hit' : '', weapon: result.taken ? 'player-hit' : '', impact: result.taken ? `-${result.taken}` : 'BLOCK', duration: 580 });
+      else showCombatEffect({ enemy: 'fx-attack', player: result.taken ? 'player-hit' : '', weapon: result.taken ? 'player-hit' : '', impact: result.taken ? `-${result.taken}` : result.evaded ? 'EVADE' : result.mitigated ? 'ARMOUR' : 'BLOCK', duration: 580 });
       commitAction('resolve enemy combat turn');
       if (result.defeat) notify('You were forced back to Greyfen.', 'bad');
       else if (result.staggered) notify('Enemy staggered · attack cancelled', 'gold');
-      else notify(result.taken ? `${result.taken} damage taken` : 'Attack fully blocked');
+      else notify(result.taken ? `${result.taken} damage taken${result.mitigated ? ` · armour stopped ${result.mitigated}` : ''}` : result.evaded ? `${result.evaded} hit${result.evaded === 1 ? '' : 's'} evaded` : result.mitigated ? 'Armour absorbed the attack' : 'Attack fully blocked');
     }
   });
 
@@ -717,7 +761,7 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
         showWorkReward(result);
         commitAction(`${result.activity} cycle`, true);
         state = getState();
-        if (result.critical) notify(`Critical! +${result.amount} ${result.metal?.name || 'Training'}`, 'gold');
+        if (result.critical && result.amount > 0) notify(`Critical! +${result.amount} ${result.metal?.name || 'Training'}`, 'gold');
       }
       const before = state.op;
       state.op = Math.min(1, state.op + dt / getOpportunitySeconds(state));

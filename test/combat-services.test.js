@@ -3,9 +3,12 @@ import assert from 'node:assert/strict';
 
 import { createFreshState } from '../game-state.js';
 import {
+  chooseCaveCardReward,
   endExploreTurn,
   getCardNumbers,
+  getCaveCardDraft,
   getCombatDeck,
+  getExploreBonuses,
   getExploreMaxHp,
   playExploreCard,
   startExploreCombat
@@ -13,7 +16,7 @@ import {
 
 test('combat deck follows hero levels and equipped weapon metal', () => {
   const state = createFreshState();
-  assert.deepEqual(getCombatDeck(state), ['slash', 'slash', 'splitter', 'splitter', 'guard', 'guard', 'feint', 'heavy', 'slash']);
+  assert.deepEqual(getCombatDeck(state), ['slash', 'slash', 'splitter', 'splitter', 'guard', 'guard', 'feint', 'heavy', 'sidestep', 'slash']);
   state.hero.level = 4;
   state.gear.push({ id: 1, name: 'Deepsteel Blade', type: 'weapon', atk: 8, def: 0, recipe: 'ds' });
   state.eq.weapon = 1;
@@ -32,7 +35,7 @@ test('exploration HP and card bonuses use hero, equipment, inn, and run buffs', 
   state.explore.buffs = { dmg: 1, brk: 2, block: 1 };
   assert.equal(getExploreMaxHp(state), 60);
   assert.deepEqual(getCardNumbers(state, 'splitter'), { dmg: 5, brk: 5, block: 0 });
-  assert.deepEqual(getCardNumbers(state, 'guard'), { dmg: 0, brk: 0, block: 7 });
+  assert.deepEqual(getCardNumbers(state, 'guard'), { dmg: 0, brk: 0, block: 8 });
 });
 
 test('combat start preserves scaling, energy, draw pile, hand, guard, and origin', () => {
@@ -87,9 +90,58 @@ test('block absorbs enemy intent and is discarded at the next draw', () => {
   playExploreCard(state, 0);
   const result = endExploreTurn(state, { random: () => 0.5 });
   assert.equal(result.absorbed, 5);
-  assert.equal(result.taken, 2);
-  assert.equal(state.explore.hp, hp - 2);
+  assert.equal(result.taken, 0);
+  assert.equal(state.explore.hp, hp);
   assert.equal(combat.block, 0);
+});
+
+test('Iron armour meaningfully reduces each hit and gains a four-piece set bonus', () => {
+  const state = createFreshState();
+  const pieces = [
+    { id: 1, recipe: 'ih', type: 'hands', def: 2 },
+    { id: 2, recipe: 'ihelm', type: 'head', def: 4 },
+    { id: 3, recipe: 'ib', type: 'feet', def: 4 },
+    { id: 4, recipe: 'il', type: 'legs', def: 6 },
+    { id: 5, recipe: 'ia', type: 'chest', def: 9 }
+  ];
+  state.gear.push(...pieces);
+  for (const piece of pieces) state.eq[piece.type] = piece.id;
+  assert.deepEqual(getExploreBonuses(state), { damage: 0, block: 11, break: 0, armour: 5 });
+  startExploreCombat(state, { enemyId: 'crawler', random: () => .4 });
+  const hp = state.explore.hp;
+  state.explore.combat.hand = [];
+  const turn = endExploreTurn(state, { random: () => .5 });
+  assert.equal(turn.mitigated, 6);
+  assert.equal(turn.taken, 0);
+  assert.equal(state.explore.hp, hp);
+});
+
+test('Sidestep avoids a hit and cave victories draft temporary strategic cards', () => {
+  const state = createFreshState();
+  state.explore.area = 'cave';
+  state.explore.caveRun.active = true;
+  startExploreCombat(state, { enemyId: 'crawler', origin: { area: 'cave', pos: [0, 0] }, random: () => .4 });
+  let combat = state.explore.combat;
+  combat.hand = ['sidestep'];
+  combat.draw = ['slash', 'guard', 'feint'];
+  playExploreCard(state, 0, { random: () => .5 });
+  const avoided = endExploreTurn(state, { random: () => .5 });
+  assert.equal(avoided.evaded, 1);
+  assert.equal(avoided.taken, 3);
+
+  combat = state.explore.combat;
+  combat.hp = 1;
+  combat.hand = ['slash'];
+  combat.energy = 3;
+  const win = playExploreCard(state, 0, { random: () => 0 });
+  assert.equal(win.victory, true);
+  assert.equal(state.explore.combat.draftOnly, true);
+  const draft = getCaveCardDraft(state);
+  assert.equal(draft.choices.length, 3);
+  const picked = chooseCaveCardReward(state, draft.choices[0].id);
+  assert.equal(picked.ok, true);
+  assert.equal(state.explore.combat, null);
+  assert.equal(getCombatDeck(state).includes(picked.card.id), true);
 });
 
 test('victory awards original rewards and advances region progression', () => {

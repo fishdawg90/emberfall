@@ -223,6 +223,18 @@ export function createLowerWaysVisuals({ THREE, scene, layout, mobile = false, r
     healingMarkers.set(cellIndex, marker);
   }
 
+  const coinMarkers = new Map();
+  for (const cellIndex of layout.furnishings.coins) {
+    const marker = createMarker(THREE, 0xf2b85d, 'cache');
+    const position = caveCellToWorld(layout, cellIndex);
+    marker.name = `wayfarer-cache-${cellIndex}`;
+    marker.position.set(position.x, CAVE_FLOOR_Y + .12, position.z);
+    marker.scale.setScalar(.72);
+    marker.userData.baseY = CAVE_FLOOR_Y + .12;
+    group.add(marker);
+    coinMarkers.set(cellIndex, marker);
+  }
+
   const lights = [];
   for (const [cellIndex, colour, intensity, distance] of [
     [layout.start, 0xf1a25b, 2.1, 17],
@@ -250,6 +262,8 @@ export function createLowerWaysVisuals({ THREE, scene, layout, mobile = false, r
   function setRun(run) {
     const claimed = new Set(run?.claimedHeals || []);
     for (const [cellIndex, marker] of healingMarkers) marker.visible = !claimed.has(cellIndex);
+    const claimedCaches = new Set(run?.claimedCoins || []);
+    for (const [cellIndex, marker] of coinMarkers) marker.visible = !claimedCaches.has(cellIndex);
     seal.visible = !run?.completed;
     gate.visible = !run?.completed;
   }
@@ -284,6 +298,15 @@ export function createLowerWaysVisuals({ THREE, scene, layout, mobile = false, r
       if (!marker.visible) continue;
       marker.position.y = marker.userData.baseY + Math.sin(time * 1.6 + index) * .08;
       marker.rotation.y = time * .12 + index;
+    }
+    for (const [index, marker] of [...coinMarkers.values()].entries()) {
+      if (!marker.visible) continue;
+      if (playerPosition && Math.hypot(playerPosition.x - marker.position.x, playerPosition.z - marker.position.z) < 2.1) {
+        marker.visible = false;
+        continue;
+      }
+      marker.position.y = marker.userData.baseY + Math.sin(time * 2.2 + index) * .1;
+      marker.rotation.y = -time * .35 + index;
     }
   }
 
@@ -370,6 +393,15 @@ export function drawCaveMiniMap({ context, size, layout, run, player, yaw, route
     ctx.beginPath();
     ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
     ctx.fill();
+  }
+  for (const cache of layout.furnishings.coins) {
+    if (!discovered.has(cache) || run?.claimedCoins?.includes(cache)) continue;
+    const point = mapPoint(cache);
+    ctx.fillStyle = '#f2bf66';
+    ctx.font = `bold ${Math.max(9, size * .055)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('$', point.x, point.y);
   }
   if (discovered.has(layout.goal)) {
     const goal = mapPoint(layout.goal);
