@@ -143,7 +143,7 @@ test('town welcome contracts are one-time rewards that survive normalized saves'
   assert.equal(normalizeSave(state).journey.towns.frostmere, true);
 });
 
-test('journey connects inn restoration to regional patrol and guardian progress', () => {
+test('journey connects inn restoration to the explorable Lower Ways maze', () => {
   const state = createFreshState();
   state.journey.services = { mine: true, smelter: true, forge: true, market: true };
   state.journey.tradeCoins = 15;
@@ -152,11 +152,13 @@ test('journey connects inn restoration to regional patrol and guardian progress'
   state.journey.towns.frostmere = true;
   state.town.inn = 1;
 
-  assert.equal(getJourneyObjective(state).id, 'patrol-cave');
+  assert.equal(getJourneyObjective(state).id, 'enter-lower-ways');
+  state.explore.caveRun.active = true;
   state.explore.area = 'cave';
-  assert.equal(getJourneyObjective(state).worldAction, 'patrol');
-  state.explore.regionWins.cave = 3;
-  assert.equal(getJourneyObjective(state).id, 'guardian-cave');
+  state.explore.caveRun.discovered = [0, 1, 2, 3];
+  assert.equal(getJourneyObjective(state).id, 'explore-lower-ways');
+  assert.equal(getJourneyObjective(state).worldAction, 'cave-goal');
+  assert.match(getJourneyObjective(state).detail, /4\/99 chambers/);
   state.explore.claimed.cave = true;
   assert.equal(getJourneyObjective(state).id, 'patrol-forest');
 });
