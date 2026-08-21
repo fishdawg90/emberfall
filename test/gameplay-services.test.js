@@ -13,6 +13,7 @@ import {
   restoreTown,
   runWorkCycle,
   selectMineDepth,
+  selectSmeltMetal,
   sellGear,
   sellMaterial,
   simulateOfflineWork,
@@ -131,6 +132,18 @@ test('opened mine depths still enforce the original mining level requirement', (
   state.skills.mining.l = 5;
   assert.equal(selectMineDepth(state, 1).ok, true);
   assert.equal(state.depth, 1);
+});
+
+test('smelting and forging cannot bypass unopened metal tiers', () => {
+  const state = createFreshState();
+  state.skills.smelting.l = 20;
+  state.skills.forging.l = 20;
+  state.inv.deepsteelOre = 3;
+  state.inv.deepsteelBar = 3;
+  assert.equal(selectSmeltMetal(state, 'deepsteel').code, 'locked-metal');
+  assert.equal(forgeItem(state, 'ds').code, 'locked-metal');
+  state.open = 1;
+  assert.equal(selectSmeltMetal(state, 'deepsteel').ok, true);
 });
 
 test('offline work uses the original cycle duration and capped cycle simulation', () => {

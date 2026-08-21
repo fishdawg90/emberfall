@@ -141,6 +141,16 @@ The hosted repo is intentionally small:
     recipes, completed missions, undiscovered missions, display controls, and
     save management sit behind focused expandable sections. Market access moves
     into Greyfen, and its default list shows only goods the player can sell.
+14. **Phone readability and visible locks (integrated).** Locked systems no
+    longer disappear from the dock or activity selector. Mines, smelting metals,
+    forge metals, recipes, trade, and restoration projects remain visible as
+    muted cards with their exact discovery, guardian, or skill requirement;
+    tapping one repeats that requirement without leaving the screen. Mine and
+    metal progression is now a two-column phone grid, while larger type, 42–52px
+    touch targets, a readable mission tracker, and a left-aligned scrolling
+    combat hand replace the previous 5–8px labels and easily clipped card row.
+    Smelting and forging services also reject unopened metal tiers at the rules
+    layer so UI locks cannot be bypassed by stale state.
 
 ## Current working checkpoint
 

@@ -2,7 +2,7 @@ import { ACTIVITIES, EQUIPMENT_SLOTS, METALS, RECIPES, TOWN_PROJECTS, UPGRADES }
 import { endExploreTurn, getCombatView, playExploreCard, startExploreCombat } from './combat-services.js';
 import { createActivityVisuals } from './activity-visuals.js';
 import { cardArtMarkup, combatSceneryMarkup, enemyFigureMarkup, playerWeaponMarkup } from './combat-visuals.js';
-import { canChallengeMineGate, getActiveMission, getGreyfenTasks, getInterfaceUnlocks, getMissionJournal, getMineGateLocation, pinMission, recordTradeCoins } from './journey-services.js';
+import { canChallengeMineGate, getActiveMission, getGreyfenTasks, getInterfaceUnlocks, getMetalUnlockState, getMissionJournal, getMineGateLocation, pinMission, recordTradeCoins } from './journey-services.js';
 import {
   buyUpgrade,
   equipItem,
@@ -30,6 +30,8 @@ import {
 
 const TAB_LABELS = Object.freeze({ work: 'Work', forge: 'Forge', gear: 'Gear', town: 'Greyfen', market: 'Market', journal: 'Journal' });
 const ACTIVITY_UNLOCK_KEYS = Object.freeze({ mining: 'mining', smelting: 'smelting', combat: 'training' });
+const TAB_UNLOCK_HINTS = Object.freeze({ forge: 'Find Greyfen’s smithy to unlock Forge.', gear: 'Forge your first item to unlock Gear.', market: 'Find Greyfen’s market to unlock Trade.' });
+const ACTIVITY_UNLOCK_HINTS = Object.freeze({ mining: 'Find Greyfen’s town mine.', smelting: 'Find Greyfen’s smelter.', combat: 'Find Greyfen’s smithy to unlock training.' });
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -145,7 +147,10 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
     const selected = activeTab === 'market' ? 'town' : activeTab;
     gameDock?.querySelectorAll('[data-open-game-tab]').forEach(element => {
       const tab = element.dataset.openGameTab;
-      element.hidden = !unlocks[tab];
+      const locked = !unlocks[tab];
+      element.hidden = false;
+      element.classList.toggle('locked', locked);
+      element.setAttribute('aria-disabled', locked ? 'true' : 'false');
       element.classList.toggle('active', panel.classList.contains('show') && tab === selected);
       element.classList.toggle('running', tab === 'work' && state.running);
     });
@@ -247,6 +252,25 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
     return `<section class="lockedPanel"><i>${icon}</i><div><small>NOT YET DISCOVERED</small><h3>${titleText}</h3><p>${hint}</p></div>${button('Route', 'route-service', serviceId, false, 'primary')}</section>`;
   }
 
+  function lockedAction(label, hint, className = '') {
+    return button(label, 'locked-hint', hint, false, `${className} locked`);
+  }
+
+  function metalLockHint(progress, mode) {
+    if (!progress.opened) return `${progress.metal.name}: ${progress.requirement}.`;
+    const required = mode === 'mining' ? progress.metal.mine : progress.metal.smelt;
+    const label = mode === 'mining' ? 'Mining' : 'Smelting';
+    return `Reach ${label} Lv ${required} for ${progress.metal.name}.`;
+  }
+
+  function metalChoice(progress, mode, selected) {
+    const ready = mode === 'mining' ? progress.miningReady : progress.smeltingReady;
+    const status = mode === 'mining' ? progress.miningStatus : progress.smeltingStatus;
+    const action = ready ? (mode === 'mining' ? 'select-depth' : 'select-smelt') : 'locked-hint';
+    const value = ready ? (mode === 'mining' ? progress.index : progress.metal.id) : metalLockHint(progress, mode);
+    return button(`<i>${ready ? progress.metal.icon : '🔒'}</i><span><strong>${progress.metal.name}</strong><small>${status}</small></span>`, action, value, false, `metalChoice ${selected ? 'active' : ''} ${ready ? '' : 'locked'}`);
+  }
+
   function renderWork() {
     const state = getState();
     const unlocks = getInterfaceUnlocks(state);
@@ -256,17 +280,21 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
     const material = state.active === 'mining'
       ? METALS[state.depth]
       : METALS.find(metal => metal.id === state.smelt) || METALS[0];
-    const activityButtons = Object.entries(ACTIVITIES).filter(([id]) => unlocks[ACTIVITY_UNLOCK_KEYS[id]]).map(([id, item]) => button(
-      `<b>${item.icon}</b><span>${id === 'combat' ? 'Training' : item.name}</span>`,
-      'select-activity',
-      id,
+    const activityButtons = Object.entries(ACTIVITIES).map(([id, item]) => {
+      const unlocked = unlocks[ACTIVITY_UNLOCK_KEYS[id]];
+      return button(
+      `<b>${unlocked ? item.icon : '🔒'}</b><span>${id === 'combat' ? 'Training' : item.name}</span>`,
+      unlocked ? 'select-activity' : 'locked-hint',
+      unlocked ? id : ACTIVITY_UNLOCK_HINTS[id],
       false,
-      `activityChoice ${state.active === id ? 'active' : ''}`
-    )).join('');
+      `activityChoice ${state.active === id ? 'active' : ''} ${unlocked ? '' : 'locked'}`
+    );
+    }).join('');
+    const metalProgress = METALS.map((_, index) => getMetalUnlockState(state, index));
     const selectors = state.active === 'mining'
-      ? `<div class="choiceRow">${METALS.map((metal, index) => button(`${metal.icon} ${metal.name}`, 'select-depth', index, index > state.open, index === state.depth ? 'active' : '')).join('')}</div>`
+      ? `<section class="resourcePicker"><div class="sectionHeading"><strong>Choose mine</strong><span>${state.open + 1}/${METALS.length} open</span></div><div class="unlockGrid">${metalProgress.map(progress => metalChoice(progress, 'mining', progress.index === state.depth)).join('')}</div></section>`
       : state.active === 'smelting'
-        ? `<div class="choiceRow">${METALS.map(metal => button(`${metal.icon} ${metal.name}`, 'select-smelt', metal.id, state.skills.smelting.l < metal.smelt, metal.id === state.smelt ? 'active' : '')).join('')}</div>`
+        ? `<section class="resourcePicker"><div class="sectionHeading"><strong>Choose metal</strong><span>Ore → bars</span></div><div class="unlockGrid">${metalProgress.map(progress => metalChoice(progress, 'smelting', progress.metal.id === state.smelt)).join('')}</div></section>`
         : '';
     const facilityMultiplier = state.active === 'smelting' ? getSmelterMultiplier(state, material.id) : 1;
     const materialLine = state.active === 'mining'
@@ -293,6 +321,7 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
     const gateCard = gateMetal && nextDepth > 1 && state.active === 'mining' && atGate ? `<section class="gameCard gateCard"><div><small>MINE GATE</small><strong>${gateMetal.icon} ${gateMetal.gate.name}</strong><p>${gateReady ? `${gateMetal.name} is within reach.` : `Mining Lv ${state.skills.mining.l}/${gateMetal.mine}`}</p></div>${button(gateReady ? 'Challenge' : 'Locked', 'challenge-gate', nextDepth, !gateReady, gateReady ? 'primary' : '')}</section>` : '';
 
     return `<div class="activityGrid">${activityButtons}</div>
+      ${selectors}
       <section class="gameCard heroCard" style="--metal:${material.color}">
         <div><small>CURRENT WORK</small><h3>${activity.icon} ${activity.name}</h3><p>${materialLine}</p></div>
         <span>${cycle.toFixed(1)}s cycle</span>
@@ -302,7 +331,6 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
           ${button(state.rad ? 'Radiant opportunity!' : 'Work opportunity', 'opportunity', '', state.op < 1, state.rad ? 'radiant' : '')}
         </div>
       </section>
-      ${selectors}
       ${skillStrip(state.active)}
       ${gateCard}
       <details class="compactDetails"><summary>Upgrades <b>${affordableUpgrades ? `${affordableUpgrades} ready` : `${totalRanks} ranks`}</b></summary><div class="serviceList">${upgrades}</div></details>
@@ -315,21 +343,30 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
     if (!unlocks.forge) return lockedPanel('⚒', 'Find Greyfen’s smithy', 'The smithy unlocks forging and combat training.', 'forge');
     const knownMetals = METALS.filter((_, index) => index <= state.open);
     if (!knownMetals.some(metal => metal.id === forgeMetal)) forgeMetal = knownMetals.at(-1)?.id || 'iron';
-    const metalChoices = knownMetals.map(metal => button(`${metal.icon} ${metal.name}`, 'forge-filter', metal.id, false, metal.id === forgeMetal ? 'active' : '')).join('');
+    const metalChoices = METALS.map((metal, index) => {
+      const progress = getMetalUnlockState(state, index);
+      return progress.opened
+        ? button(`<i>${metal.icon}</i><span>${metal.name}</span>`, 'forge-filter', metal.id, false, `forgeMetalChoice ${metal.id === forgeMetal ? 'active' : ''}`)
+        : lockedAction(`<i>🔒</i><span>${metal.name}</span>`, `${metal.name}: ${progress.requirement}.`, 'forgeMetalChoice');
+    }).join('');
     const allRecipes = RECIPES.filter(recipe => recipe.m === forgeMetal);
     const recipeMarkup = recipe => {
       const metal = METALS.find(entry => entry.id === recipe.m);
       const locked = state.skills.forging.l < recipe.req;
-      const short = state.inv[`${metal.id}Bar`] < recipe.bars;
-      return `<div class="recipeCard" style="--metal:${metal.color}">
+      const bars = state.inv[`${metal.id}Bar`];
+      const short = bars < recipe.bars;
+      const control = locked
+        ? lockedAction(`🔒 Lv ${recipe.req}`, `Reach Forging Lv ${recipe.req} for ${recipe.name}.`, 'forgeButton')
+        : button(short ? `Need ${recipe.bars - bars}` : 'Forge', 'forge', recipe.id, short, 'forgeButton');
+      return `<div class="recipeCard ${locked ? 'locked' : ''}" style="--metal:${metal.color}">
         <div><small>${recipe.type.toUpperCase()}${locked ? ` · LV ${recipe.req}` : ''}</small><strong>${recipe.name}</strong><span>${recipe.atk ? `+${recipe.atk} ATK` : `+${recipe.def} DEF`} · ${recipe.bars} bars</span></div>
-        ${button(locked ? 'Locked' : 'Forge', 'forge', recipe.id, locked || short, 'forgeButton')}
+        ${control}
       </div>`;
     };
     const readyRecipes = allRecipes.filter(recipe => state.skills.forging.l >= recipe.req).map(recipeMarkup).join('');
     const lockedRecipes = allRecipes.filter(recipe => state.skills.forging.l < recipe.req).map(recipeMarkup).join('');
     const metal = knownMetals.find(entry => entry.id === forgeMetal) || knownMetals[0];
-    return `<div class="forgeSummary"><span>${metal.icon} ${state.inv[`${metal.id}Bar`]} bars</span>${skillStrip('forging')}</div><div class="choiceRow metalTabs">${metalChoices}</div><div class="recipeList">${readyRecipes}</div>${lockedRecipes ? `<details class="compactDetails"><summary>Locked recipes <b>${allRecipes.length - allRecipes.filter(recipe => state.skills.forging.l >= recipe.req).length}</b></summary><div class="recipeList">${lockedRecipes}</div></details>` : ''}${compactHelp('Gear and cards', 'Weapons improve attack cards. Armour adds health and stronger Block.')}`;
+    return `<div class="forgeSummary"><span>${metal.icon} ${state.inv[`${metal.id}Bar`]} bars</span>${skillStrip('forging')}</div><div class="forgeMetalGrid">${metalChoices}</div><div class="recipeList">${readyRecipes}</div>${lockedRecipes ? `<details class="compactDetails"><summary>Locked recipes <b>${allRecipes.length - allRecipes.filter(recipe => state.skills.forging.l >= recipe.req).length}</b></summary><div class="recipeList">${lockedRecipes}</div></details>` : ''}${compactHelp('Gear and cards', 'Weapons improve attack cards. Armour adds health and stronger Block.')}`;
   }
 
   function renderGear() {
@@ -350,14 +387,17 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
     const unlocks = getInterfaceUnlocks(state);
     const tasks = getGreyfenTasks(state);
     const taskCount = tasks.filter(task => task.complete).length;
-    const availableProjects = Object.entries(TOWN_PROJECTS).filter(([id]) => unlocks.projects[id]);
-    const projects = availableProjects.map(([id, project]) => {
+    const projectHint = id => ({ forge: 'Find Greyfen’s smithy.', smelter: 'Find Greyfen’s smelter.', market: 'Find Greyfen’s market.', inn: 'Reach Frostmere on the north road.' }[id]);
+    const projects = Object.entries(TOWN_PROJECTS).map(([id, project]) => {
+      const unlocked = unlocks.projects[id];
       const level = getTownLevel(state, id);
       const maxed = level >= project.max;
       const cost = getTownCost(state, id);
-      return `<div class="townCard"><div class="townLevel"><i style="width:${level / project.max * 100}%"></i></div><div><small>LEVEL ${level}/${project.max}</small><strong>${project.name}</strong><span>${project.desc}</span></div>${button(maxed ? 'Restored' : `${cost} coin`, 'restore', id, maxed || state.coins < cost, maxed ? '' : 'primary')}</div>`;
+      const control = unlocked ? button(maxed ? 'Restored' : `${cost} coin`, 'restore', id, maxed || state.coins < cost, maxed ? '' : 'primary') : lockedAction('🔒 Locked', projectHint(id));
+      return `<div class="townCard ${unlocked ? '' : 'locked'}"><div class="townLevel"><i style="width:${unlocked ? level / project.max * 100 : 0}%"></i></div><div><small>${unlocked ? `LEVEL ${level}/${project.max}` : 'LOCKED'}</small><strong>${project.name}</strong><span>${unlocked ? project.desc : projectHint(id)}</span></div>${control}</div>`;
     }).join('');
-    return `<section class="townProgress"><div><small>TOWN ORIENTATION</small><strong>${taskCount}/${tasks.length} complete</strong><span>${taskCount === tasks.length ? 'North road ready' : 'Follow the active mission'}</span></div><div>${unlocks.market ? button('Trade', 'open-market') : ''}${button('Journal', 'open-journal')}</div></section><h3 class="sectionTitle">Restoration</h3><div class="townList">${projects || '<div class="emptyState compact">Discover town services to reveal projects.</div>'}</div>${availableProjects.length < Object.keys(TOWN_PROJECTS).length ? `<p class="unlockNote">More projects unlock through missions.</p>` : ''}${compactHelp('Restoring Greyfen', 'Each level improves its matching system and changes the building in the world.')}`;
+    const trade = unlocks.market ? button('Trade', 'open-market') : lockedAction('🔒 Trade', 'Find Greyfen’s market.');
+    return `<section class="townProgress"><div><small>TOWN ORIENTATION</small><strong>${taskCount}/${tasks.length} complete</strong><span>${taskCount === tasks.length ? 'North road ready' : 'Follow the active mission'}</span></div><div>${trade}${button('Journal', 'open-journal')}</div></section><h3 class="sectionTitle">Restoration</h3><div class="townList">${projects}</div>${compactHelp('Restoring Greyfen', 'Each level improves its matching system and changes the building in the world.')}`;
   }
 
   function renderJournal() {
@@ -461,9 +501,10 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
     const requested = TAB_LABELS[tab] ? tab : 'work';
     const unlocks = getInterfaceUnlocks(getState());
     if (!unlocks[requested]) {
-      activeTab = 'journal';
-      notify(`${TAB_LABELS[requested]} has not been discovered yet.`, 'bad');
-    } else activeTab = requested;
+      notify(TAB_UNLOCK_HINTS[requested] || `${TAB_LABELS[requested]} has not been discovered yet.`);
+      return false;
+    }
+    activeTab = requested;
     panel.classList.add('show');
     panel.setAttribute('aria-hidden', 'false');
     renderBody();
@@ -499,6 +540,10 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
   function onAction(action, rawValue) {
     const state = getState();
     const unlocks = getInterfaceUnlocks(state);
+    if (action === 'locked-hint') {
+      notify(rawValue || 'Continue the active mission to unlock this.');
+      return true;
+    }
     if (action === 'mission-pin') return applyResult(pinMission(state, rawValue), `pin mission ${rawValue}`, result => `${result.mission.title} is now active`);
     if (action === 'mission-go') {
       const mission = getMissionJournal(state).find(entry => entry.id === rawValue && entry.unlocked && !entry.complete);

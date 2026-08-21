@@ -7,6 +7,7 @@ import {
   getActiveMission,
   getGreyfenTasks,
   getInterfaceUnlocks,
+  getMetalUnlockState,
   getJourneyObjective,
   getMissionJournal,
   pinMission,
@@ -38,6 +39,23 @@ test('interface systems reveal through town discovery and useful inventory', () 
   assert.equal(getInterfaceUnlocks(state).gear, true);
   state.journey.towns.frostmere = true;
   assert.equal(getInterfaceUnlocks(state).projects.inn, true);
+});
+
+test('metal unlock states explain future mines before they become selectable', () => {
+  const state = createFreshState();
+  const ironBefore = getMetalUnlockState(state, 0);
+  assert.equal(ironBefore.opened, false);
+  assert.equal(ironBefore.miningStatus, 'Find Greyfen’s town mine');
+
+  recordServiceVisit(state, 'mine');
+  assert.equal(getMetalUnlockState(state, 0).miningReady, true);
+  assert.equal(getMetalUnlockState(state, 1).miningStatus, 'Secure the Lower Ways');
+
+  state.open = 1;
+  assert.equal(getMetalUnlockState(state, 1).miningStatus, 'Mining Lv 1/5');
+  state.skills.mining.l = 5;
+  assert.equal(getMetalUnlockState(state, 1).miningStatus, 'Mine open');
+  assert.equal(getMetalUnlockState(state, 1).smeltingStatus, 'Find Greyfen’s smelter');
 });
 
 test('journey guides a fresh hero through ore, bars, forging, and equipment', () => {

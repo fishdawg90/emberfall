@@ -24,7 +24,7 @@ test('hosted shell retains mobile navigation, camera direction, assets, roads, a
 test('migrated gameplay dock is loaded without replacing the Three.js runtime', () => {
   assert.match(html, /class="gameDock"/);
   assert.match(html, /id="gamePanel"/);
-  assert.match(html, /game\.js\?v=13/);
+  assert.match(html, /game\.js\?v=14/);
   assert.match(game, /createGameUI/);
   assert.match(game, /new THREE\.WebGLRenderer/);
   assert.match(game, /saveGameState/);
@@ -223,4 +223,21 @@ test('quick intro and mission journal connect the full gameplay loop', async () 
   assert.match(journey, /find-mine/);
   assert.match(journey, /getGreyfenTasks/);
   assert.match(ui, /route-service/);
+});
+
+test('phone UI keeps locked progression visible and raises gameplay text sizes', async () => {
+  const ui = await readFile(new URL('game-ui.js', root), 'utf8');
+  const journey = await readFile(new URL('journey-services.js', root), 'utf8');
+  assert.match(ui, /getMetalUnlockState/);
+  assert.match(ui, /class="resourcePicker"/);
+  assert.match(ui, /class="unlockGrid"/);
+  assert.match(ui, /locked-hint/);
+  assert.match(ui, /element\.classList\.toggle\('locked', locked\)/);
+  assert.match(journey, /Secure the Lower Ways/);
+  assert.match(journey, /Glass Warden/);
+  assert.match(journey, /Abyss Sentinel/);
+  assert.match(html, /\.gamePanelBody button\{min-height:42px/);
+  assert.match(html, /\.missionTracker>strong\{min-height:25px/);
+  assert.match(html, /\.combatCard\{flex:0 0 124px/);
+  assert.match(html, /\.unlockGrid,\.forgeMetalGrid\{grid-template-columns:1fr 1fr\}/);
 });

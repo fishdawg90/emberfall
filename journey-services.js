@@ -13,6 +13,13 @@ export const MINE_GATE_LOCATIONS = Object.freeze({
   3: Object.freeze({ landmarkId: 'tidewatch', name: 'Tidewatch Buried Mine' })
 });
 
+export const METAL_UNLOCK_PATHS = Object.freeze([
+  'Find Greyfen’s town mine',
+  'Secure the Lower Ways',
+  'Defeat Sunspire’s Glass Warden',
+  'Defeat Tidewatch’s Abyss Sentinel'
+]);
+
 const GREYFEN_TASKS = Object.freeze([
   Object.freeze({ id: 'mine', icon: '⛏', title: 'Find the town mine' }),
   Object.freeze({ id: 'smelter', icon: '♨', title: 'Find the smelter' }),
@@ -56,6 +63,29 @@ export function getInterfaceUnlocks(state) {
       market: Boolean(services.market),
       inn: Boolean(towns.frostmere)
     }
+  };
+}
+
+export function getMetalUnlockState(state, tier) {
+  const index = Number(tier);
+  const metal = METALS[index];
+  if (!metal) return null;
+  const services = state.journey?.services || {};
+  const opened = Boolean(services.mine) && index <= (Number(state.open) || 0);
+  const miningLevel = Number(state.skills?.mining?.l) || 1;
+  const smeltingLevel = Number(state.skills?.smelting?.l) || 1;
+  const miningReady = opened && miningLevel >= metal.mine;
+  const smeltingReady = opened && Boolean(services.smelter) && smeltingLevel >= metal.smelt;
+  const requirement = METAL_UNLOCK_PATHS[index];
+  return {
+    index,
+    metal,
+    opened,
+    requirement,
+    miningReady,
+    smeltingReady,
+    miningStatus: !opened ? requirement : miningReady ? 'Mine open' : `Mining Lv ${miningLevel}/${metal.mine}`,
+    smeltingStatus: !opened ? requirement : !services.smelter ? 'Find Greyfen’s smelter' : smeltingReady ? 'Ready to smelt' : `Smelting Lv ${smeltingLevel}/${metal.smelt}`
   };
 }
 

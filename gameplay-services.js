@@ -186,6 +186,7 @@ export function selectMineDepth(state, depth) {
 export function selectSmeltMetal(state, metalId) {
   const metal = METALS.find(entry => entry.id === metalId);
   if (!metal) return fail('invalid-metal', 'Unknown metal.');
+  if (METALS.indexOf(metal) > state.open) return fail('locked-metal', `${metal.place} has not been opened yet.`);
   if ((state.skills?.smelting?.l || 1) < metal.smelt) return fail('skill-required', `Smelting level ${metal.smelt} required.`);
   state.smelt = metalId;
   return selectActivity(state, 'smelting');
@@ -210,6 +211,7 @@ export function runWorkCycle(state, options = {}) {
   } else if (activity === 'smelting') {
     metal = METALS.find(entry => entry.id === state.smelt);
     if (!metal) return fail('invalid-metal', 'Choose a metal to smelt.');
+    if (METALS.indexOf(metal) > state.open) return fail('locked-metal', `${metal.place} has not been opened yet.`);
     const oreKey = `${metal.id}Ore`;
     if (state.inv[oreKey] < metal.cost) {
       state.running = false;
@@ -238,6 +240,7 @@ export function runOpportunity(state, options = {}) {
 
   if (activity === 'mining') {
     metal = METALS[state.depth];
+    if (!metal || state.depth > state.open) return fail('locked-depth', 'That mine depth is not available.');
     amount = radiant ? 3 : 1;
     state.inv[`${metal.id}Ore`] += amount;
     if (radiant) {
@@ -248,6 +251,7 @@ export function runOpportunity(state, options = {}) {
   } else if (activity === 'smelting') {
     metal = METALS.find(entry => entry.id === state.smelt);
     const tier = Math.max(0, METALS.findIndex(entry => entry.id === state.smelt));
+    if (!metal || tier > state.open) return fail('locked-metal', 'That metal has not been opened yet.');
     xp = Math.round((radiant ? 7 : 3) * ([1, 1.5, 2.2, 3.2][tier] || 1));
     addSkillXp(state, 'smelting', xp);
     state.p = Math.min(0.96, state.p + (radiant ? 0.62 : 0.46));
@@ -293,6 +297,7 @@ export function forgeItem(state, recipeId = state.selectedRecipe, options = {}) 
   const recipe = RECIPES.find(entry => entry.id === recipeId);
   if (!recipe) return fail('invalid-recipe', 'Unknown forge recipe.');
   const metal = METALS.find(entry => entry.id === recipe.m);
+  if (METALS.indexOf(metal) > state.open) return fail('locked-metal', `${metal.place} has not been opened yet.`, { recipe, metal });
   const barKey = `${metal.id}Bar`;
   if (state.skills.forging.l < recipe.req) return fail('skill-required', `Forge level ${recipe.req} required.`, { recipe });
   if (state.inv[barKey] < recipe.bars) return fail('bars-required', `Need ${recipe.bars} ${metal.bar}${recipe.bars === 1 ? '' : 's'}.`, { recipe, metal });
