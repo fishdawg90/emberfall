@@ -27,7 +27,7 @@ test('hosted shell retains mobile navigation, camera direction, assets, roads, a
 test('migrated gameplay dock is loaded without replacing the Three.js runtime', () => {
   assert.match(html, /class="gameDock"/);
   assert.match(html, /id="gamePanel"/);
-  assert.match(html, /game\.js\?v=16/);
+  assert.match(html, /game\.js\?v=17/);
   assert.match(game, /createGameUI/);
   assert.match(game, /new THREE\.WebGLRenderer/);
   assert.match(game, /saveGameState/);
@@ -258,9 +258,19 @@ test('Lower Ways visuals use mobile-budget instancing, authored CC0 rocks, cave 
   assert.match(caveVisuals, /claimedHeals/);
   assert.match(caveVisuals, /lower-ways-player-lantern/);
   assert.match(caveVisuals, /explorerLight\.position\.set\(playerPosition/);
+  assert.match(caveVisuals, /raycastTargets: \[floor, wall\]/);
   assert.match(game, /applyCaveAtmosphere/);
   assert.match(game, /caveWorld\?\.addRockAsset\(assets\.rock\)/);
   assert.match(game, /miniSafety\.textContent='DANGER'/);
+});
+
+test('cave taps stop at walls, cannot trigger Greyfen services, and expose cave health', () => {
+  assert.match(game, /ray\.intersectObjects\(caveWorld\.raycastTargets,false\)\[0\]/);
+  assert.match(game, /caveWorld\.floorTargets\.includes\(firstHit\.object\)/);
+  assert.match(game, /function nearestService\(p\)\{if\(caveMode\(\)\)return null/);
+  assert.match(game, /caveMode\(\)\?'CAVE HP':'HP'/);
+  assert.match(html, /\.playerVitals\{position:fixed;z-index:26;left:10px;top:calc\(105px/);
+  assert.match(html, /\.debugBtn\{top:calc\(154px/);
 });
 
 test('autowalk smooths saw-tooth routes and returns the camera to travel heading after touch look', () => {

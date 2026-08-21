@@ -291,6 +291,7 @@ export function createLowerWaysVisuals({ THREE, scene, layout, mobile = false, r
     group,
     layout,
     floorTargets: [floor],
+    raycastTargets: [floor, wall],
     setVisible,
     setRun,
     addRockAsset,
