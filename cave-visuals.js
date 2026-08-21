@@ -107,7 +107,7 @@ export function createLowerWaysVisuals({ THREE, scene, layout, mobile = false, r
     }
   }
 
-  const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x30383b, roughness: 1, metalness: 0 });
+  const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x3b4548, roughness: 1, metalness: 0 });
   const floor = makeInstanced(THREE, new THREE.BoxGeometry(CAVE_CELL_SIZE - .12, .26, CAVE_CELL_SIZE - .12), floorMaterial, layout.cells.length, 'lower-ways-floor');
   for (const [index, cell] of layout.cells.entries()) {
     const position = caveCellToWorld(layout, cell.index);
@@ -116,21 +116,21 @@ export function createLowerWaysVisuals({ THREE, scene, layout, mobile = false, r
   floor.instanceMatrix.needsUpdate = true;
   group.add(floor);
 
-  const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x3e4648, roughness: .98, vertexColors: true });
+  const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x4a5457, roughness: .98, vertexColors: true });
   const wall = makeInstanced(THREE, new THREE.BoxGeometry(CAVE_CELL_SIZE + .22, 5.5, .72, 2, 2, 1), wallMaterial, wallSegments.length, 'lower-ways-rock-walls');
   for (const [index, segment] of wallSegments.entries()) {
     const horizontal = segment.direction.bit === 1 || segment.direction.bit === 4;
     const x = segment.position.x + segment.direction.dx * CAVE_CELL_SIZE / 2;
     const z = segment.position.z + segment.direction.dy * CAVE_CELL_SIZE / 2;
     placeInstance(wall, index, dummy, { x, y: CAVE_FLOOR_Y + 2.55, z }, { y: horizontal ? 0 : Math.PI / 2, z: (random() - .5) * .025 }, { x: .96 + random() * .08, y: .9 + random() * .18, z: .92 + random() * .15 });
-    const shade = .62 + random() * .25;
-    wall.setColorAt(index, new THREE.Color(shade * .45, shade * .49, shade * .5));
+    const shade = .72 + random() * .24;
+    wall.setColorAt(index, new THREE.Color(shade * .48, shade * .53, shade * .55));
   }
   wall.instanceMatrix.needsUpdate = true;
   if (wall.instanceColor) wall.instanceColor.needsUpdate = true;
   group.add(wall);
 
-  const ceilingMaterial = new THREE.MeshStandardMaterial({ color: 0x202729, roughness: 1, side: THREE.DoubleSide });
+  const ceilingMaterial = new THREE.MeshStandardMaterial({ color: 0x2b3335, roughness: 1, side: THREE.DoubleSide });
   const ceiling = makeInstanced(THREE, new THREE.BoxGeometry(CAVE_CELL_SIZE, .38, CAVE_CELL_SIZE), ceilingMaterial, layout.cells.length, 'lower-ways-ceiling');
   for (const [index, cell] of layout.cells.entries()) {
     const position = caveCellToWorld(layout, cell.index);
@@ -236,7 +236,14 @@ export function createLowerWaysVisuals({ THREE, scene, layout, mobile = false, r
     lights.push(light);
     group.add(light);
   }
-  const caveAmbient = new THREE.HemisphereLight(0x37576a, 0x151719, .72);
+  // A shadow-free explorer light follows the player. This keeps passages
+  // readable on phone displays without multiplying expensive shadow maps.
+  const explorerLight = new THREE.PointLight(0xffd6a0, mobile ? 2.8 : 3.15, mobile ? 31 : 36, 1.45);
+  explorerLight.name = 'lower-ways-player-lantern';
+  explorerLight.castShadow = false;
+  explorerLight.position.set(entryPosition.x, CAVE_FLOOR_Y + 2.25, entryPosition.z);
+  group.add(explorerLight);
+  const caveAmbient = new THREE.HemisphereLight(0x63869a, 0x23282a, 1.12);
   group.add(caveAmbient);
   addAuthoredRockLandmarks({ THREE, group, layout, rockAsset, mobile });
 
@@ -267,8 +274,10 @@ export function createLowerWaysVisuals({ THREE, scene, layout, mobile = false, r
     return path;
   }
 
-  function update(time) {
+  function update(time, playerPosition = null) {
     if (!group.visible) return;
+    if (playerPosition) explorerLight.position.set(playerPosition.x, CAVE_FLOOR_Y + 2.18, playerPosition.z);
+    explorerLight.intensity = (mobile ? 2.8 : 3.15) + Math.sin(time * 2.1) * .12;
     crystals.material.emissiveIntensity = .72 + Math.sin(time * 1.7) * .18;
     seal.rotation.z = time * .18;
     for (const [index, marker] of [...healingMarkers.values()].entries()) {

@@ -15,8 +15,11 @@ the four metal tiers, exploration, combat, trade, and restoration form one
 guided loop. The Lower Ways is now a generated, resumable first-person cave
 maze with fog-of-war mapping, frontier route hints, random card battles,
 uncommon healing discoveries, a far-chamber guardian, and a dedicated
-Deepsteel unlock reward. Tap the 3D ground to walk, drag to look, and use the bottom dock
-or in-world Greyfen service labels for the migrated town systems.
+Deepsteel unlock reward. A persistent health HUD, collapsible live map, brighter
+player-following cave light, smoothed routes, and post-look camera return keep
+the phone exploration view readable. Tap the 3D ground to walk, drag to look,
+and use the bottom dock or in-world Greyfen service labels for the migrated
+town systems.
 
 ## Local checks
 
@@ -30,6 +33,7 @@ node --check combat-visuals.js
 node --check cave-data.js
 node --check cave-services.js
 node --check cave-visuals.js
+node --check navigation-utils.js
 node --check journey-services.js
 ```
 
