@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
+import { EXPLORATION_REWARDS } from '../game-catalog.js';
 import { createFreshState } from '../game-state.js';
 import {
   chooseCaveCardReward,
@@ -144,7 +145,7 @@ test('Sidestep avoids a hit and cave victories draft temporary strategic cards',
   assert.equal(getCombatDeck(state).includes(picked.card.id), true);
 });
 
-test('victory awards original rewards and advances region progression', () => {
+test('victory awards tunable exploration rewards and advances region progression', () => {
   const state = createFreshState();
   startExploreCombat(state, { random: () => 0.4 });
   const combat = state.explore.combat;
@@ -154,7 +155,7 @@ test('victory awards original rewards and advances region progression', () => {
   combat.energy = 3;
   const result = playExploreCard(state, 0, { random: () => 0 });
   assert.equal(result.victory, true);
-  assert.equal(result.coins, 7);
+  assert.equal(result.coins, EXPLORATION_REWARDS.battleMin);
   assert.equal(result.xp, 12);
   assert.equal(state.explore.combat, null);
   assert.equal(state.explore.regionWins.world, 1);

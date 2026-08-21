@@ -6,6 +6,7 @@ import {
   getVisibleCaveCells,
   normalizeCaveRun
 } from './cave-data.js';
+import { EXPLORATION_REWARDS } from './game-catalog.js';
 import { getExploreMaxHp } from './combat-services.js';
 
 const layoutCache = new Map();
@@ -108,7 +109,8 @@ export function useNearbyCaveCoinCache(state, position) {
   if (!layout.furnishings.coins.includes(cell.index) || run.claimedCoins.includes(cell.index)) {
     return { ok: true, claimed: false, cell: cell.index };
   }
-  const coins = 9 + ((run.seed ^ (cell.index * 31)) >>> 0) % 9;
+  const coins = EXPLORATION_REWARDS.cacheMin
+    + ((run.seed ^ (cell.index * 31)) >>> 0) % EXPLORATION_REWARDS.cacheRange;
   state.coins += coins;
   state.explore.haul.coins += coins;
   run.claimedCoins.push(cell.index);

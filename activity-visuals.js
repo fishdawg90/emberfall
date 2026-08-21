@@ -8,6 +8,33 @@ const LABELS = Object.freeze({
   forging: ['THE SMITHY', 'Shape equipped gear at the anvil']
 });
 
+const MINING_THEMES = Object.freeze({
+  iron: {
+    title: 'IRON MOUTH', description: 'Warm lanterns · timber and rail',
+    background: 0x101719, fog: 0x101719, fogNear: 7, fogFar: 21,
+    floor: 0x383b38, shell: 0x3c4140, rock: 0x444845,
+    support: 0x5b422c, lamp: 0xffb356, dust: 0xd6c6a4
+  },
+  deepsteel: {
+    title: 'FLOODED GALLERIES', description: 'Cold water · drowned machinery',
+    background: 0x061820, fog: 0x0a2530, fogNear: 5.5, fogFar: 17,
+    floor: 0x1d3439, shell: 0x203b42, rock: 0x294951,
+    support: 0x344e55, lamp: 0x65d7ed, dust: 0x7dd9e8
+  },
+  starsilver: {
+    title: 'GLASS VEINS', description: 'Black glass · violet fractures',
+    background: 0x0e0a18, fog: 0x181028, fogNear: 6, fogFar: 18,
+    floor: 0x211d2b, shell: 0x262130, rock: 0x342e42,
+    support: 0x3f3b4c, lamp: 0xb793ff, dust: 0xc5adff
+  },
+  aetherite: {
+    title: 'THE BURIED SKY', description: 'Floating stone · impossible starlight',
+    background: 0x030713, fog: 0x071124, fogNear: 7, fogFar: 23,
+    floor: 0x111b28, shell: 0x152235, rock: 0x1c2d42,
+    support: 0x26394c, lamp: 0x78cfff, dust: 0xf4d676
+  }
+});
+
 export function createActivityVisuals({ canvas, container, caption, gain, getState, debug = window.EmberDebug }) {
   const THREE = window.THREE;
   if (!THREE || !canvas || !container) return { show() {}, hide() {}, update() {}, pulse() {}, reward() {}, destroy() {} };
@@ -90,6 +117,7 @@ export function createActivityVisuals({ canvas, container, caption, gain, getSta
   const hand = (x, y, z, rotation = [0, 0, 0]) => cylinder(tool, 0.13, 0.56, [x, y, z], standard(0xa97050), rotation, 8);
 
   let mode = '';
+  let metalId = 'iron';
   let visible = false;
   let running = false;
   let progress = 0;
@@ -142,7 +170,9 @@ export function createActivityVisuals({ canvas, container, caption, gain, getSta
   }
 
   function updateCaption() {
-    const [title, description] = LABELS[mode] || LABELS.mining;
+    const [title, description] = mode === 'mining'
+      ? [MINING_THEMES[metalId]?.title || LABELS.mining[0], MINING_THEMES[metalId]?.description || LABELS.mining[1]]
+      : LABELS[mode] || LABELS.mining;
     const count = desiredStack.count;
     const inventory = Number.isFinite(count) && desiredStack.label
       ? `${Number(count).toLocaleString()} ${desiredStack.label} ${mode === 'forging' ? 'ready' : 'stacked'}`
@@ -271,13 +301,13 @@ export function createActivityVisuals({ canvas, container, caption, gain, getSta
     if (!rewardFlights.length) renderStack(true);
   }
 
-  function caveShell() {
-    floor(standard(0x383b38));
-    box(environment, [8, 5, 0.8], [0, 2.45, -5.2], standard(0x3c4140), [-0.03, 0, 0]);
-    box(environment, [1.4, 5, 10], [-4.2, 2.3, -1], standard(0x303536), [0, 0, -0.08]);
-    box(environment, [1.4, 5, 10], [4.2, 2.3, -1], standard(0x303536), [0, 0, 0.08]);
+  function caveShell(theme) {
+    floor(standard(theme.floor));
+    box(environment, [8, 5, 0.8], [0, 2.45, -5.2], standard(theme.shell), [-0.03, 0, 0]);
+    box(environment, [1.4, 5, 10], [-4.2, 2.3, -1], standard(theme.shell), [0, 0, -0.08]);
+    box(environment, [1.4, 5, 10], [4.2, 2.3, -1], standard(theme.shell), [0, 0, 0.08]);
     for (let index = 0; index < 9; index += 1) {
-      const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.45 + index % 3 * 0.17, 0), standard(index % 2 ? 0x444845 : 0x343938));
+      const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.45 + index % 3 * 0.17, 0), standard(index % 2 ? theme.rock : theme.shell));
       rock.scale.set(1.5, 0.8, 1);
       rock.position.set(-3.2 + index * 0.82, 0.3 + index % 2 * 0.2, -4.55 + index % 3 * 0.28);
       environment.add(rock);
@@ -285,32 +315,82 @@ export function createActivityVisuals({ canvas, container, caption, gain, getSta
   }
 
   function buildMining() {
-    scene.background.setHex(0x101719);
-    scene.fog.color.setHex(0x101719);
-    fireBase = 1.9;
+    const theme = MINING_THEMES[metalId] || MINING_THEMES.iron;
+    scene.background.setHex(theme.background);
+    scene.fog.color.setHex(theme.fog);
+    scene.fog.near = theme.fogNear;
+    scene.fog.far = theme.fogFar;
+    fireLight.color.setHex(theme.lamp);
+    fireBase = metalId === 'aetherite' ? 2.8 : metalId === 'deepsteel' ? 2.35 : 1.9;
     fireLight.intensity = fireBase;
-    caveShell();
-    const timber = standard(0x5b422c);
-    for (const z of [-4.15, -1.35]) {
-      box(environment, [0.34, 3.9, 0.34], [-2.85, 1.95, z], timber);
-      box(environment, [0.34, 3.9, 0.34], [2.85, 1.95, z], timber);
-      box(environment, [6.15, 0.34, 0.42], [0, 3.82, z], timber);
+    caveShell(theme);
+    const supports = metalId === 'iron' ? standard(theme.support) : metal(theme.support);
+    if (metalId !== 'aetherite') {
+      for (const z of [-4.15, -1.35]) {
+        box(environment, [0.34, 3.9, 0.34], [-2.85, 1.95, z], supports);
+        box(environment, [0.34, 3.9, 0.34], [2.85, 1.95, z], supports);
+        box(environment, [6.15, 0.34, 0.42], [0, 3.82, z], supports);
+      }
     }
-    for (const side of [-0.62, 0.62]) box(environment, [0.12, 0.08, 9], [side, 0.11, -0.8], metal(0x62696b));
-    for (let index = 0; index < 9; index += 1) box(environment, [1.8, 0.09, 0.22], [0, 0.08, 2.5 - index * 0.82], timber);
-    const cart = new THREE.Group();
-    box(cart, [1.35, 0.62, 1.65], [-2.0, 0.58, -2.0], metal(0x485054), [0.08, 0, 0]);
-    for (const z of [-2.55, -1.45]) cylinder(cart, 0.24, 1.62, [-2.0, 0.24, z], metal(0x282e30), [0, 0, Math.PI / 2], 10);
-    environment.add(cart);
-    const lanternGlow = sphere(environment, 0.14, [2.15, 2.65, -3.95], emissive(0xffb356, 3.4), [1, 1.25, 1], 9);
-    box(environment, [0.45, 0.55, 0.35], [2.15, 2.66, -3.95], metal(0x3d4547, { transparent: true, opacity: 0.62 }));
-    accentMaterial = emissive(0xd6975e, 1.45);
+
+    let water = null;
+    let floaters = null;
+    if (metalId === 'iron') {
+      for (const side of [-0.62, 0.62]) box(environment, [0.12, 0.08, 9], [side, 0.11, -0.8], metal(0x62696b));
+      for (let index = 0; index < 9; index += 1) box(environment, [1.8, 0.09, 0.22], [0, 0.08, 2.5 - index * 0.82], supports);
+      const cart = new THREE.Group();
+      box(cart, [1.35, 0.62, 1.65], [-2.0, 0.58, -2.0], metal(0x485054), [0.08, 0, 0]);
+      for (const z of [-2.55, -1.45]) cylinder(cart, 0.24, 1.62, [-2.0, 0.24, z], metal(0x282e30), [0, 0, Math.PI / 2], 10);
+      environment.add(cart);
+    } else if (metalId === 'deepsteel') {
+      water = new THREE.Mesh(new THREE.PlaneGeometry(8.1, 10), new THREE.MeshStandardMaterial({ color: 0x174a59, emissive: 0x0b3342, emissiveIntensity: 0.65, roughness: 0.18, metalness: 0.12, transparent: true, opacity: 0.78 }));
+      water.rotation.x = -Math.PI / 2;
+      water.position.set(0, 0.13, -1);
+      environment.add(water);
+      for (const side of [-1.3, 1.3]) box(environment, [1.05, 0.18, 9], [side, 0.24, -0.8], standard(0x31464a));
+      for (const side of [-1, 1]) {
+        cylinder(environment, 0.12, 8.4, [side * 3.18, 2.5, -0.8], metal(0x38565f), [Math.PI / 2, 0, 0], 8);
+        for (const z of [-3.8, -1.4, 1]) cylinder(environment, 0.22, 0.16, [side * 3.18, 2.5, z], metal(0x72838a), [Math.PI / 2, 0, 0], 10);
+      }
+      const pump = new THREE.Group();
+      box(pump, [1.3, 1.5, 1.0], [-2.35, 0.9, -3.2], metal(0x2d444a));
+      const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.08, 6, 14), metal(0x74868b));
+      wheel.position.set(-1.68, 1.22, -2.82);
+      wheel.rotation.y = Math.PI / 2;
+      pump.add(wheel);
+      environment.add(pump);
+    } else if (metalId === 'starsilver') {
+      const glass = new THREE.MeshStandardMaterial({ color: 0x16111f, emissive: 0x261b3c, emissiveIntensity: 0.48, roughness: 0.14, metalness: 0.42 });
+      for (let index = 0; index < 11; index += 1) {
+        box(environment, [0.28 + index % 3 * 0.12, 2.1 + index % 4 * 0.55, 0.7], [-3.2 + index * 0.64, 1.05 + index % 4 * 0.28, -4.35 + index % 2 * 0.55], glass, [0.08, 0.18 - index * 0.04, -0.24 + index * 0.05]);
+      }
+      for (const side of [-1, 1]) box(environment, [0.15, 0.12, 7.5], [side * 1.7, 0.16, -1.1], metal(0x6d647e));
+    } else {
+      box(environment, [3.1, 0.35, 6.8], [0, 0.18, -0.6], standard(0x18283a));
+      floaters = new THREE.Group();
+      for (let index = 0; index < (mobile ? 9 : 14); index += 1) {
+        const fragment = new THREE.Mesh(new THREE.DodecahedronGeometry(0.28 + index % 4 * 0.13, 0), standard(index % 2 ? 0x24405a : 0x182c43));
+        fragment.position.set(-3.2 + index % 5 * 1.55, 0.75 + index % 4 * 0.68, -4.2 + Math.floor(index / 5) * 2.05);
+        fragment.rotation.set(index * 0.31, index * 0.47, index * 0.19);
+        floaters.add(fragment);
+      }
+      environment.add(floaters);
+    }
+
+    const lanternGlow = sphere(environment, 0.14, [2.15, 2.65, -3.95], emissive(theme.lamp, 3.4), [1, 1.25, 1], 9);
+    box(environment, [0.45, 0.55, 0.35], [2.15, 2.66, -3.95], metal(theme.support, { transparent: true, opacity: 0.62 }));
+    const mineLight = new THREE.PointLight(theme.lamp, metalId === 'iron' ? 2.2 : 3.1, 8, 2);
+    mineLight.position.set(2.1, 2.55, -3.55);
+    environment.add(mineLight);
+    accentMaterial = emissive(theme.lamp, metalId === 'aetherite' ? 2.8 : 1.65);
+    let oreFace = null;
     for (let index = 0; index < 8; index += 1) {
       const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(0.22 + index % 3 * 0.07, 0), accentMaterial);
-      crystal.scale.y = 1.5;
+      crystal.scale.y = metalId === 'aetherite' ? 2.15 : metalId === 'starsilver' ? 1.85 : 1.5;
       crystal.position.set(-1.4 + index * 0.4, 1 + index % 3 * 0.37, -4.72 + index % 2 * 0.12);
       crystal.rotation.z = index * 0.46;
       environment.add(crystal);
+      oreFace ||= crystal;
     }
     const pick = new THREE.Group();
     cylinder(pick, 0.07, 2.25, [0, 0, 0], standard(0x765335), [0, 0, -0.16], 9);
@@ -320,12 +400,25 @@ export function createActivityVisuals({ canvas, container, caption, gain, getSta
     tool.add(pick);
     hand(0.82, 0.36, 2.45, [0, 0, -0.26]);
     hand(0.48, 1.12, 2.43, [0, 0, -0.32]);
-    animated = { primary: pick, base: pick.rotation.clone(), impact: environment.children.at(-1), particles: particles(environment, mobile ? 16 : 28, 0xd6c6a4, [6.5, 3.4, 6, -2.1, 0.35]), particleSpeed: 0.0025, lanternGlow };
+    animated = {
+      primary: pick,
+      base: pick.rotation.clone(),
+      impact: oreFace,
+      water,
+      floaters,
+      particles: particles(environment, mobile ? 16 : 28, theme.dust, [6.5, 3.4, 6, -2.1, 0.35]),
+      particleSpeed: metalId === 'deepsteel' ? 0.004 : 0.0025,
+      particleDirection: metalId === 'deepsteel' ? -1 : 1,
+      lanternGlow
+    };
   }
 
   function buildSmelting() {
     scene.background.setHex(0x171719);
     scene.fog.color.setHex(0x171719);
+    scene.fog.near = 7;
+    scene.fog.far = 21;
+    fireLight.color.setHex(0xff6b2c);
     fireBase = 4.2;
     fireLight.intensity = fireBase;
     floor(standard(0x393735));
@@ -356,6 +449,9 @@ export function createActivityVisuals({ canvas, container, caption, gain, getSta
   function buildTraining() {
     scene.background.setHex(0x657b78);
     scene.fog.color.setHex(0x657b78);
+    scene.fog.near = 7;
+    scene.fog.far = 21;
+    fireLight.color.setHex(0xff6b2c);
     fireBase = 0;
     fireLight.intensity = fireBase;
     floor(standard(0x5d6d49));
@@ -392,6 +488,9 @@ export function createActivityVisuals({ canvas, container, caption, gain, getSta
   function buildForging() {
     scene.background.setHex(0x161719);
     scene.fog.color.setHex(0x161719);
+    scene.fog.near = 7;
+    scene.fog.far = 21;
+    fireLight.color.setHex(0xff6b2c);
     fireBase = 3.4;
     fireLight.intensity = fireBase;
     floor(standard(0x3b3834));
@@ -426,7 +525,7 @@ export function createActivityVisuals({ canvas, container, caption, gain, getSta
     animated = { primary: hammer, target: hotBar, base: hammer.rotation.clone(), particles: particles(environment, mobile ? 22 : 42, 0xffa34e, [2.8, 2.5, 1.8, -2.55, 0.75]), particleSpeed: 0.016 };
   }
 
-  function rebuild(nextMode) {
+  function rebuild(nextMode, options = {}) {
     disposeGroup(environment);
     disposeGroup(tool);
     disposeGroup(stack);
@@ -436,12 +535,14 @@ export function createActivityVisuals({ canvas, container, caption, gain, getSta
     accentMaterial = null;
     animated = {};
     mode = nextMode;
+    if (mode === 'mining') metalId = MINING_THEMES[options.metalId] ? options.metalId : metalId;
     if (mode === 'mining') buildMining();
     else if (mode === 'smelting') buildSmelting();
     else if (mode === 'combat') buildTraining();
     else buildForging();
     updateCaption();
     container.dataset.mode = mode;
+    container.dataset.variant = mode === 'mining' ? metalId : mode;
   }
 
   function resize() {
@@ -472,11 +573,22 @@ export function createActivityVisuals({ canvas, container, caption, gain, getSta
     }
     if (animated.target && mode === 'combat') animated.target.rotation.z = action ? Math.sin(cycle) * 0.025 : Math.sin(seconds) * 0.008;
     if (animated.glow) animated.glow.material.emissiveIntensity = 2 + Math.sin(seconds * 7) * 0.42;
+    if (animated.water) {
+      animated.water.material.opacity = 0.74 + Math.sin(seconds * 1.6) * 0.05;
+      animated.water.position.y = 0.13 + Math.sin(seconds * 1.2) * 0.008;
+    }
+    if (animated.floaters) {
+      animated.floaters.position.y = Math.sin(seconds * 0.85) * 0.08;
+      animated.floaters.rotation.y = Math.sin(seconds * 0.2) * 0.025;
+    }
     if (animated.particles) {
       const attribute = animated.particles.points.geometry.attributes.position;
       for (let index = 0; index < attribute.count; index += 1) {
-        const next = attribute.getY(index) + animated.particleSpeed * (1 + index % 4) * (action ? 2.1 : 0.55);
-        attribute.setY(index, next > animated.particles.ceiling ? animated.particles.floor : next);
+        const direction = animated.particleDirection || 1;
+        const next = attribute.getY(index) + direction * animated.particleSpeed * (1 + index % 4) * (action ? 2.1 : 0.55);
+        attribute.setY(index, direction > 0
+          ? (next > animated.particles.ceiling ? animated.particles.floor : next)
+          : (next < animated.particles.floor ? animated.particles.ceiling : next));
       }
       attribute.needsUpdate = true;
       animated.particles.points.material.opacity = action ? 0.88 : 0.36;
@@ -490,6 +602,9 @@ export function createActivityVisuals({ canvas, container, caption, gain, getSta
   }
 
   function update(options = {}) {
+    if (mode === 'mining' && options.metalId && options.metalId !== metalId && MINING_THEMES[options.metalId]) {
+      rebuild(mode, options);
+    }
     running = Boolean(options.running);
     progress = Number.isFinite(options.progress) ? options.progress : 0;
     if (accentMaterial && options.metalColor) {
@@ -501,7 +616,7 @@ export function createActivityVisuals({ canvas, container, caption, gain, getSta
 
   function show(nextMode, options = {}) {
     if (!LABELS[nextMode]) return hide();
-    if (mode !== nextMode) rebuild(nextMode);
+    if (mode !== nextMode || nextMode === 'mining' && options.metalId && options.metalId !== metalId) rebuild(nextMode, options);
     update(options);
     visible = true;
     container.classList.add('show');

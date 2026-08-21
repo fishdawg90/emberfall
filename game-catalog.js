@@ -2,6 +2,20 @@
 // Keep renderer and DOM concerns out of this module so the 3D world, mobile UI,
 // and automated tests all consume the same rules.
 
+// One tuning surface for expedition income. Keeping these values beside the
+// canonical catalog makes economy changes deliberate instead of scattering
+// coin literals across combat, caches, and card-draft UI.
+export const EXPLORATION_REWARDS = Object.freeze({
+  battleMin: 10,
+  battleMax: 15,
+  winBonus: 3,
+  caveBonus: 5,
+  bossBonus: 40,
+  cacheMin: 15,
+  cacheRange: 13,
+  skippedCard: 10
+});
+
 export const METALS = Object.freeze([
   { id: 'iron', name: 'Iron', icon: '●', color: '#d59662', ore: 'Iron ore', bar: 'Iron bar', mine: 1, smelt: 1, oreV: 2, barV: 7, cost: 3, yield: [1, 3], place: 'Iron Mouth', desc: 'Upper mine · ordinary iron.', gate: null },
   { id: 'deepsteel', name: 'Deepsteel', icon: '◆', color: '#77a9cf', ore: 'Deepsteel ore', bar: 'Deepsteel bar', mine: 5, smelt: 4, oreV: 7, barV: 25, cost: 3, yield: [1, 2], place: 'Flooded Galleries', desc: 'Blue ore below the old waterline.', gate: { id: 'tunnelmauler', name: 'Tunnel Mauler', hp: 48, atk: 7, coin: 35 } },

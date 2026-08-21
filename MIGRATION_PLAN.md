@@ -188,6 +188,13 @@ The hosted repo is intentionally small:
     long idle sessions slow until the player forges or sells. Finally, routed
     destinations verify physical arrival and replan collisions, preventing a
     Greyfen building collision from remotely entering the Lower Ways.
+18. **Expedition exit, income, and mine identity pass (integrated).** Cave
+    battles, caches, and skipped card drafts now draw coin payouts from one
+    tunable reward table. The minimap exit and guardian reward screen can warp
+    directly to the saved Lower Ways entrance, ending temporary run cards as a
+    normal evacuation should. Mining scenes rebuild for the selected depth:
+    warm timbered Iron Mouth, flooded cyan Deepsteel machinery, fractured
+    violet Glass Veins, and the floating stone and starlight of the Buried Sky.
 
 ## Current working checkpoint
 
