@@ -8,6 +8,7 @@ import {
   WORLD_SPACE_VERSION,
   getAreaAtPosition,
   getFastTravelLandmarks,
+  getKnownLandmarks,
   isGuardianAvailable,
   readHostedWorldPosition,
   writeHostedWorldPosition
@@ -29,7 +30,7 @@ test('hosted overworld preserves all original named landmarks and connected rout
 
 test('legacy map coordinates fall back safely while hosted positions round-trip', () => {
   const state = createFreshState();
-  assert.deepEqual(readHostedWorldPosition(state.explore), { x: 0, z: 126, migrated: true });
+  assert.deepEqual(readHostedWorldPosition(state.explore), { x: 0, z: 96, migrated: true });
 
   const area = getAreaAtPosition({ x: -212, z: -198 });
   writeHostedWorldPosition(state.explore, { x: -212.345, z: -198.765 }, area);
@@ -44,7 +45,7 @@ test('legacy map coordinates fall back safely while hosted positions round-trip'
 });
 
 test('continuous world areas are safe in towns and region-specific near guardians', () => {
-  assert.equal(getAreaAtPosition({ x: 0, z: 128 }).area, 'town');
+  assert.equal(getAreaAtPosition({ x: 0, z: 96 }).area, 'town');
   assert.equal(getAreaAtPosition({ x: -225, z: 165 }).area, 'forest');
   assert.equal(getAreaAtPosition({ x: 225, z: 170 }).area, 'cave');
   assert.equal(getAreaAtPosition({ x: 0, z: 260 }).area, 'world');
@@ -53,10 +54,21 @@ test('continuous world areas are safe in towns and region-specific near guardian
 test('guardian and fast-travel gates follow original three-win region claims', () => {
   const state = createFreshState();
   assert.deepEqual(getFastTravelLandmarks(state).map(landmark => landmark.id), ['town']);
+  assert.deepEqual(getKnownLandmarks(state).map(landmark => landmark.id), ['town']);
+  state.journey.services = { mine: true, smelter: true, forge: true, market: true };
+  state.gear.push({ id: 1, type: 'weapon' });
+  state.eq.weapon = 1;
+  assert.deepEqual(getKnownLandmarks(state).map(landmark => landmark.id), ['town']);
+  state.journey.tradeCoins = 15;
+  assert.deepEqual(getKnownLandmarks(state).map(landmark => landmark.id), ['town', 'frostmere']);
+  state.journey.towns.frostmere = true;
+  assert.deepEqual(getKnownLandmarks(state).map(landmark => landmark.id), ['town', 'frostmere', 'cave']);
   assert.equal(isGuardianAvailable(state, 'forest'), false);
+  state.explore.claimed.cave = true;
+  assert.deepEqual(getKnownLandmarks(state).map(landmark => landmark.id), ['town', 'frostmere', 'forest', 'cave']);
   state.explore.regionWins.forest = 3;
   assert.equal(isGuardianAvailable(state, 'forest'), true);
   state.explore.claimed.forest = true;
   assert.equal(isGuardianAvailable(state, 'forest'), false);
-  assert.deepEqual(getFastTravelLandmarks(state).map(landmark => landmark.id), ['town', 'forest']);
+  assert.deepEqual(getFastTravelLandmarks(state).map(landmark => landmark.id), ['town', 'frostmere', 'forest', 'cave']);
 });

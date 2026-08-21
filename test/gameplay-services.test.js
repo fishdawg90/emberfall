@@ -100,6 +100,20 @@ test('smelting consumes ore, produces bars, and stops cleanly when ore runs out'
   assert.equal(state.running, false);
 });
 
+test('visiting regional towns unlocks better smelting for their metal', () => {
+  const state = createFreshState();
+  state.open = 1;
+  state.active = 'smelting';
+  state.smelt = 'deepsteel';
+  state.inv.deepsteelOre = 12;
+  const before = runWorkCycle(state, { random: () => 0.99 });
+  state.journey.towns.frostmere = true;
+  const rolls = [0.9, 0.9, 0.05];
+  const after = runWorkCycle(state, { random: () => rolls.shift() ?? 0.9 });
+  assert.equal(before.amount, 1);
+  assert.equal(after.amount, 2);
+});
+
 test('opened mine depths still enforce the original mining level requirement', () => {
   const state = createFreshState();
   state.open = 1;

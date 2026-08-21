@@ -24,15 +24,15 @@ test('hosted shell retains mobile navigation, camera direction, assets, roads, a
 test('migrated gameplay dock is loaded without replacing the Three.js runtime', () => {
   assert.match(html, /class="gameDock"/);
   assert.match(html, /id="gamePanel"/);
-  assert.match(html, /game\.js\?v=10/);
+  assert.match(html, /game\.js\?v=11/);
   assert.match(game, /createGameUI/);
   assert.match(game, /new THREE\.WebGLRenderer/);
   assert.match(game, /saveGameState/);
 });
 
-test('four persistent premade Greyfen services route walking into migrated systems', () => {
+test('five persistent premade Greyfen services route walking into migrated systems', () => {
   assert.match(html, /id="worldServices"/);
-  for (const id of ['forge', 'smelter', 'market', 'inn']) {
+  for (const id of ['mine', 'forge', 'smelter', 'market', 'inn']) {
     assert.match(game, new RegExp(`id:'${id}'`));
   }
   assert.match(game, /building-small-d\.glb/);
@@ -43,7 +43,7 @@ test('four persistent premade Greyfen services route walking into migrated syste
 });
 
 test('continuous overworld paints long routes and places complete landmark assets', () => {
-  assert.match(html, /World map/);
+  assert.match(html, /world map/i);
   assert.match(game, /WORLD_ROUTES/);
   assert.match(game, /route\.points\.map/);
   assert.match(game, /R\.k==='world'/);
@@ -75,15 +75,31 @@ test('3D travel checkpoints positions and starts preserved distance encounters',
   assert.match(game, /checkpoint 3D world position/);
   assert.match(game, /gameUI\.startEncounter\(\{boss:true/);
   assert.match(game, /return to Greyfen after defeat/);
+  assert.match(game, /Journey resumed to/);
 });
 
 test('world map supports walking targets and gated fast travel', () => {
   assert.match(html, /id="mapDestinations"/);
-  assert.match(html, /Tap a landmark to walk/);
+  assert.match(html, /Tap a discovered landmark to walk/);
   assert.match(game, /getFastTravelLandmarks/);
   assert.match(game, /function fastTravelTo/);
   assert.match(game, /planCanvas\.addEventListener\('click',mapWalkTarget\)/);
   assert.match(game, /window\.EmberfallWorld/);
+});
+
+test('progressive discovery and live minimap connect routes to safe towns', () => {
+  assert.match(html, /id="miniMapCanvas"/);
+  assert.match(html, /id="miniSafety"/);
+  assert.match(html, /SAFE TOWN/);
+  assert.match(game, /getKnownLandmarks/);
+  assert.match(game, /drawLiveMiniMap/);
+  assert.match(game, /Route on foot/);
+  assert.match(game, /recordServiceVisit/);
+  assert.match(game, /isLandmarkKnown/);
+  assert.match(worldVisuals, /function createLivingTowns/);
+  assert.match(worldVisuals, /living-towns-and-safe-boundaries/);
+  assert.match(worldVisuals, /function createSkyLife/);
+  assert.match(worldVisuals, /sun-and-clouds/);
 });
 
 test('coarse-pointer profile reduces expensive Android rendering work', () => {
@@ -125,6 +141,18 @@ test('combat has visible patrol and mine-gate enemies with mobile CSS animations
   assert.match(html, /combatArena\.area-cave/);
   assert.match(combatVisuals, /combatSceneryMarkup/);
   assert.match(html, /combatImpact/);
+});
+
+test('combat cards include distinct lightweight illustrated art', async () => {
+  const ui = await readFile(new URL('game-ui.js', root), 'utf8');
+  assert.match(combatVisuals, /CARD_ART/);
+  assert.match(combatVisuals, /cardArtMarkup/);
+  for (const card of ['slash', 'splitter', 'guard', 'feint', 'heavy', 'silvercut', 'aetherbreak']) {
+    assert.match(combatVisuals, new RegExp(`${card}:`));
+  }
+  assert.match(ui, /cardArtMarkup\(card\.id\)/);
+  assert.match(html, /combatCardArt/);
+  assert.match(html, /theme-aether/);
 });
 
 test('work and forge panels expose mobile-budget first-person Three.js scenes', async () => {
@@ -170,4 +198,7 @@ test('quick intro and persistent journey objective connect the full gameplay loo
   assert.match(game, /journeyWorldAction/);
   assert.match(journey, /visit-frostmere/);
   assert.match(journey, /patrol-cave/);
+  assert.match(journey, /find-mine/);
+  assert.match(journey, /getGreyfenTasks/);
+  assert.match(ui, /route-service/);
 });

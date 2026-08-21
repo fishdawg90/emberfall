@@ -3,10 +3,10 @@
 
 const TOWN_CLUSTERS = Object.freeze({
   town: Object.freeze([
-    ['a', -76, -26, 0.88, 1.42], ['b', -77, 67, 0.9, 1.72],
-    ['c', 76, 70, 0.84, -1.66], ['a', 77, -54, 0.86, -1.5],
-    ['b', -20, -88, 0.82, 0.04], ['c', 38, -91, 0.8, -0.08],
-    ['garage', -91, 19, 0.86, 1.54], ['d', 92, 12, 0.82, -1.54]
+    ['a', -62, -24, 0.88, 1.42], ['b', -60, 55, 0.9, 1.72],
+    ['c', 61, 56, 0.84, -1.66], ['a', 63, -47, 0.86, -1.5],
+    ['b', -19, -68, 0.82, 0.04], ['c', 34, -70, 0.8, -0.08],
+    ['garage', -72, 18, 0.86, 1.54], ['d', 73, 11, 0.82, -1.54]
   ]),
   frostmere: Object.freeze([
     ['a', -20, 9, 0.9, 0.8], ['c', 16, 13, 0.82, -0.72],
@@ -14,7 +14,7 @@ const TOWN_CLUSTERS = Object.freeze({
   ]),
   sunspire: Object.freeze([
     ['d', -17, -15, 0.98, 2.35], ['a', 18, -12, 0.84, -2.25],
-    ['b', -17, 17, 0.8, 0.78], ['d', 18, 17, 0.76, -0.82]
+    ['b', -17, 17, 0.8, 0.78], ['garage', 18, 17, 0.82, -0.82]
   ]),
   tidewatch: Object.freeze([
     ['b', -19, -12, 0.9, 2.28], ['c', 16, -15, 0.82, -2.2],
@@ -92,6 +92,132 @@ export function createAdventureBackdrop({ THREE, scene, height, mobile = false }
   group.add(water);
   scene.add(group);
   return group;
+}
+
+export function createSkyLife({ THREE, scene, mobile = false }) {
+  const group = new THREE.Group();
+  group.name = 'sun-and-clouds';
+  const sun = new THREE.Mesh(
+    new THREE.SphereGeometry(18, mobile ? 10 : 16, 8),
+    new THREE.MeshBasicMaterial({ color: 0xffe3a0, fog: false })
+  );
+  sun.position.set(-270, 245, -410);
+  group.add(sun);
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0xffd27b, transparent: true, opacity: 0.22, depthWrite: false, fog: false }));
+  halo.scale.set(92, 92, 1);
+  sun.add(halo);
+
+  const cloudMaterial = new THREE.MeshLambertMaterial({ color: 0xf2f0e7, transparent: true, opacity: 0.78, depthWrite: false, fog: false });
+  const cloudGeometry = new THREE.SphereGeometry(1, mobile ? 6 : 8, 5);
+  const clouds = [];
+  const cloudCount = mobile ? 5 : 8;
+  for (let index = 0; index < cloudCount; index += 1) {
+    const cloud = new THREE.Group();
+    for (let puff = 0; puff < 5; puff += 1) {
+      const mesh = new THREE.Mesh(cloudGeometry, cloudMaterial);
+      mesh.position.set((puff - 2) * 9, Math.abs(puff - 2) * -1.8, (puff % 2) * 4);
+      mesh.scale.set(9 + puff % 2 * 4, 4.5 + puff % 3, 5.5);
+      cloud.add(mesh);
+    }
+    cloud.position.set(-280 + index * 86, 116 + index % 3 * 24, -245 + index % 4 * 125);
+    cloud.userData.speed = 0.65 + index % 3 * 0.18;
+    clouds.push(cloud);
+    group.add(cloud);
+  }
+  scene.add(group);
+  return {
+    update(delta) {
+      for (const cloud of clouds) {
+        cloud.position.x += delta * cloud.userData.speed;
+        if (cloud.position.x > 390) cloud.position.x = -390;
+      }
+    }
+  };
+}
+
+export function createLivingTowns({ THREE, scene, height, landmarks, mobile = false }) {
+  const group = new THREE.Group();
+  group.name = 'living-towns-and-safe-boundaries';
+  const townLandmarks = landmarks.filter(landmark => landmark.kind === 'town');
+  const postGeometry = new THREE.CylinderGeometry(0.13, 0.18, 1.35, 6);
+  const postMaterial = new THREE.MeshStandardMaterial({ color: 0x806749, roughness: 0.94 });
+  const postCount = townLandmarks.reduce((total, town) => total + (town.id === 'town' ? 34 : 18), 0);
+  const posts = new THREE.InstancedMesh(postGeometry, postMaterial, postCount);
+  const dummy = new THREE.Object3D();
+  let postIndex = 0;
+  for (const town of townLandmarks) {
+    const count = town.id === 'town' ? 34 : 18;
+    const boundary = town.radius - (town.id === 'town' ? 3 : 2);
+    const gateAngle = Math.atan2(town.entry.z - town.z, town.entry.x - town.x);
+    for (let index = 0; index < count; index += 1) {
+      const angle = index / count * Math.PI * 2;
+      const gap = Math.abs(Math.atan2(Math.sin(angle - gateAngle), Math.cos(angle - gateAngle)));
+      if (gap < 0.16) continue;
+      const x = town.x + Math.cos(angle) * boundary;
+      const z = town.z + Math.sin(angle) * boundary;
+      dummy.position.set(x, height(x, z) + 0.67, z);
+      dummy.rotation.set(0, -angle, (index % 3 - 1) * 0.035);
+      dummy.scale.set(1, 0.9 + index % 3 * 0.08, 1);
+      dummy.updateMatrix();
+      posts.setMatrixAt(postIndex++, dummy.matrix);
+    }
+  }
+  posts.count = postIndex;
+  posts.castShadow = posts.receiveShadow = true;
+  group.add(posts);
+
+  const bodyGeometry = new THREE.CylinderGeometry(0.2, 0.3, 0.68, 7);
+  const headGeometry = new THREE.SphereGeometry(0.2, 8, 6);
+  const legGeometry = new THREE.CylinderGeometry(0.075, 0.09, 0.48, 6);
+  const skin = new THREE.MeshStandardMaterial({ color: 0xa66f52, roughness: 0.9 });
+  const palettes = {
+    town: [0x6d3c32, 0x395b50, 0x4c4f73],
+    frostmere: [0x476779, 0x738990, 0x45536b],
+    sunspire: [0xaa663d, 0x87632f, 0x715044],
+    tidewatch: [0x317278, 0x4d667a, 0x386253]
+  };
+  const clothMaterials = Object.fromEntries(Object.entries(palettes).map(([townId, colors]) => [
+    townId,
+    colors.map(color => new THREE.MeshStandardMaterial({ color, roughness: 0.92 }))
+  ]));
+  const npcs = [];
+  for (const town of townLandmarks) {
+    const count = town.id === 'town' ? (mobile ? 7 : 10) : (mobile ? 4 : 6);
+    for (let index = 0; index < count; index += 1) {
+      const npc = new THREE.Group();
+      const cloth = clothMaterials[town.id][index % 3];
+      const body = new THREE.Mesh(bodyGeometry, cloth);
+      body.position.y = 0.82;
+      const head = new THREE.Mesh(headGeometry, skin);
+      head.position.y = 1.38;
+      const leftLeg = new THREE.Mesh(legGeometry, cloth);
+      const rightLeg = new THREE.Mesh(legGeometry, cloth);
+      leftLeg.position.set(-0.11, 0.27, 0);
+      rightLeg.position.set(0.11, 0.27, 0);
+      npc.add(body, head, leftLeg, rightLeg);
+      const radius = 7 + index % 4 * 3.2;
+      const phase = index / count * Math.PI * 2;
+      npc.userData = { town, radius, phase, speed: 0.1 + index % 3 * 0.025, leftLeg, rightLeg };
+      npcs.push(npc);
+      group.add(npc);
+    }
+  }
+  scene.add(group);
+  return {
+    update(time) {
+      for (const npc of npcs) {
+        const data = npc.userData;
+        const angle = data.phase + time * data.speed;
+        const x = data.town.x + Math.cos(angle) * data.radius;
+        const z = data.town.z + Math.sin(angle * 0.93) * data.radius;
+        npc.position.set(x, height(x, z), z);
+        npc.rotation.y = -angle + Math.PI / 2;
+        npc.position.y += Math.sin(time * 5 + data.phase) * 0.025;
+        data.leftLeg.rotation.x = Math.sin(time * 5 + data.phase) * 0.42;
+        data.rightLeg.rotation.x = -data.leftLeg.rotation.x;
+      }
+    }
+  };
 }
 
 export function decorateAdventureWorld({ THREE, scene, assets, height, propPlace, roadDist, landmarks, lots, addCollider, mobile = false }) {
@@ -326,4 +452,85 @@ export function drawAdventureMap({ context, size, worldLimit, player, roads, lan
   ctx.strokeStyle = '#18222a';
   ctx.lineWidth = 2;
   ctx.stroke();
+}
+
+export function drawLiveMiniMap({ context, size, player, yaw = 0, roads, landmarks, route = [], areaInfo }) {
+  const ctx = context;
+  const radius = 72;
+  const scale = size / (radius * 2);
+  const point = (x, z) => [size / 2 + (x - player.x) * scale, size / 2 + (z - player.z) * scale];
+  ctx.clearRect(0, 0, size, size);
+  const gradient = ctx.createRadialGradient(size / 2, size / 2, 4, size / 2, size / 2, size * 0.7);
+  gradient.addColorStop(0, '#1d3529');
+  gradient.addColorStop(1, '#09151d');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+
+  const town = landmarks.find(landmark => landmark.kind === 'town' && Math.hypot(player.x - landmark.x, player.z - landmark.z) < radius + landmark.radius);
+  if (town) {
+    const [x, y] = point(town.x, town.z);
+    ctx.fillStyle = '#b8915630';
+    ctx.strokeStyle = '#e0b66a99';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(x, y, town.radius * scale, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  ctx.lineCap = 'round';
+  for (const road of roads) {
+    if (!road.p.some(([x, z]) => Math.hypot(x - player.x, z - player.z) < radius * 1.4)) continue;
+    ctx.beginPath();
+    let started = false;
+    for (const [x, z] of road.p) {
+      const [mx, my] = point(x, z);
+      if (!started) { ctx.moveTo(mx, my); started = true; } else ctx.lineTo(mx, my);
+    }
+    ctx.strokeStyle = road.k === 'world' ? '#cfaf74aa' : '#9b815baa';
+    ctx.lineWidth = Math.max(2, road.w * scale * 0.44);
+    ctx.stroke();
+  }
+
+  if (route.length > 1) {
+    ctx.beginPath();
+    route.forEach((waypoint, index) => {
+      const [x, y] = point(waypoint.x, waypoint.z);
+      if (index) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+    });
+    ctx.strokeStyle = '#ffe091';
+    ctx.lineWidth = 4;
+    ctx.setLineDash([7, 5]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  for (const landmark of landmarks) {
+    if (Math.hypot(player.x - landmark.x, player.z - landmark.z) > radius * 1.2) continue;
+    const [x, y] = point(landmark.x, landmark.z);
+    ctx.fillStyle = landmark === areaInfo?.landmark ? '#fff0a9' : '#d3b46f';
+    ctx.beginPath();
+    ctx.arc(x, y, landmark.id === 'town' ? 7 : 5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.save();
+  ctx.translate(size / 2, size / 2);
+  ctx.rotate(yaw);
+  ctx.fillStyle = areaInfo?.area === 'town' ? '#8de3a5' : '#ffffff';
+  ctx.strokeStyle = '#071018';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, -10);
+  ctx.lineTo(7, 8);
+  ctx.lineTo(0, 5);
+  ctx.lineTo(-7, 8);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.fillStyle = '#d9c58e';
+  ctx.font = 'bold 11px system-ui';
+  ctx.fillText('N', size / 2 - 4, 13);
 }

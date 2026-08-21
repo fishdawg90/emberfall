@@ -1,8 +1,8 @@
 import { ACTIVITIES, EQUIPMENT_SLOTS, METALS, RECIPES, TOWN_PROJECTS, UPGRADES } from './game-catalog.js';
 import { endExploreTurn, getCombatView, playExploreCard, startExploreCombat } from './combat-services.js';
 import { createActivityVisuals } from './activity-visuals.js';
-import { combatSceneryMarkup, enemyFigureMarkup, playerWeaponMarkup } from './combat-visuals.js';
-import { getJourneyObjective } from './journey-services.js';
+import { cardArtMarkup, combatSceneryMarkup, enemyFigureMarkup, playerWeaponMarkup } from './combat-visuals.js';
+import { canChallengeMineGate, getGreyfenTasks, getJourneyObjective, getMineGateLocation, recordTradeCoins } from './journey-services.js';
 import {
   buyUpgrade,
   equipItem,
@@ -12,6 +12,7 @@ import {
   getMaterialRows,
   getOpportunitySeconds,
   getRadiantChance,
+  getSmelterMultiplier,
   getTownCost,
   getTownLevel,
   getUpgradeCost,
@@ -255,10 +256,11 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
       : state.active === 'smelting'
         ? `<div class="choiceRow">${METALS.map(metal => button(`${metal.icon} ${metal.name}`, 'select-smelt', metal.id, state.skills.smelting.l < metal.smelt, metal.id === state.smelt ? 'active' : '')).join('')}</div>`
         : '';
+    const facilityMultiplier = state.active === 'smelting' ? getSmelterMultiplier(state, material.id) : 1;
     const materialLine = state.active === 'mining'
       ? `${state.inv[`${material.id}Ore`]} ${material.ore}`
       : state.active === 'smelting'
-        ? `${state.inv[`${material.id}Ore`]} ore → ${state.inv[`${material.id}Bar`]} bars`
+        ? `${state.inv[`${material.id}Ore`]} ore → ${state.inv[`${material.id}Bar`]} bars${facilityMultiplier > 1 ? ` · regional foundry ×${facilityMultiplier.toFixed(2)}` : ''}`
         : 'Combat skill XP improves mine-gate battles';
     const upgrades = Object.entries(UPGRADES).map(([id, upgrade]) => {
       const rank = state.up[state.active][id];
@@ -269,8 +271,10 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
     }).join('');
     const nextDepth = Math.min(METALS.length - 1, state.open + 1);
     const gateMetal = state.open < METALS.length - 1 ? METALS[nextDepth] : null;
-    const gateReady = gateMetal && state.skills.mining.l >= gateMetal.mine;
-    const gateCard = gateMetal && state.active === 'mining' ? `<section class="gameCard gateCard"><small>NEXT MINE DEPTH</small><strong>${gateMetal.icon} ${gateMetal.place}</strong><p>${gateMetal.gate.name} guards ${gateMetal.name}. Reach Mining Lv ${gateMetal.mine}, then win a card battle to open the seam.</p>${button(gateReady ? `Challenge ${gateMetal.gate.name}` : `Mining Lv ${state.skills.mining.l}/${gateMetal.mine}`, 'challenge-gate', nextDepth, !gateReady, gateReady ? 'primary' : '')}</section>` : '';
+    const gateLocation = getMineGateLocation(nextDepth);
+    const atGate = canChallengeMineGate(state, nextDepth);
+    const gateReady = gateMetal && atGate && state.skills.mining.l >= gateMetal.mine;
+    const gateCard = gateMetal && nextDepth > 1 && state.active === 'mining' ? `<section class="gameCard gateCard"><small>${atGate ? 'LOCAL MINE GATE' : 'MINE FOUND IN THE WORLD'}</small><strong>${gateMetal.icon} ${gateMetal.place}</strong><p>${gateMetal.gate.name} guards ${gateMetal.name} beneath ${gateLocation?.name || 'a distant town'}. ${atGate ? `Reach Mining Lv ${gateMetal.mine}, then challenge it here.` : 'Use the Journey route to reach this mine.'}</p>${button(gateReady ? `Challenge ${gateMetal.gate.name}` : atGate ? `Mining Lv ${state.skills.mining.l}/${gateMetal.mine}` : `Travel to ${gateLocation?.name || 'mine'}`, 'challenge-gate', nextDepth, !gateReady, gateReady ? 'primary' : '')}</section>` : '';
 
     return `<div class="activityGrid">${activityButtons}</div>
       <section class="gameCard heroCard" style="--metal:${material.color}">
@@ -319,13 +323,14 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
 
   function renderTown() {
     const state = getState();
+    const tasks = getGreyfenTasks(state).map(task => `<div class="townTask ${task.complete ? 'complete' : ''}"><i>${task.complete ? '✓' : task.icon}</i><div><strong>${task.title}</strong><span>${task.complete ? 'Complete' : task.progress || 'Not yet found'}</span></div>${task.complete ? '' : task.serviceId ? button('Route', 'route-service', task.serviceId) : button('Trade', 'open-market')}</div>`).join('');
     const projects = Object.entries(TOWN_PROJECTS).map(([id, project]) => {
       const level = getTownLevel(state, id);
       const maxed = level >= project.max;
       const cost = getTownCost(state, id);
       return `<div class="townCard"><div class="townLevel"><i style="width:${level / project.max * 100}%"></i></div><div><small>LEVEL ${level}/${project.max}</small><strong>${project.name}</strong><span>${project.desc}</span></div>${button(maxed ? 'Restored' : `${cost} coin`, 'restore', id, maxed || state.coins < cost, maxed ? '' : 'primary')}</div>`;
     }).join('');
-    return `<div class="townIntro"><small>GREYFEN RESTORATION</small><h3>Bring the town back to life</h3><p>Coin earned through trade, town contracts and battles permanently strengthens every part of the loop.</p></div><div class="townList">${projects}</div>`;
+    return `<div class="townIntro"><small>GREYFEN TASK BOARD</small><h3>Learn the town, then open the roads</h3><p>Complete these local tasks to reveal the first destination beyond Greyfen’s safe boundary.</p></div><div class="townTasks">${tasks}</div><h3 class="sectionTitle">Restoration projects</h3><div class="townList">${projects}</div>`;
   }
 
   function renderMarket() {
@@ -359,7 +364,7 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
     const hand = cards.map((card, index) => {
       const offset = index - (cards.length - 1) / 2;
       const disabled = outro || card.cost > combat.energy || combat.resolving;
-      return `<button class="combatCard" data-combat-card="${index}" style="--fan-r:${(offset * 2.4).toFixed(1)}deg;--fan-y:${Math.abs(offset * 2.2).toFixed(1)}px" ${disabled ? 'disabled' : ''}><span class="combatCardCost">${card.cost}</span><span class="combatCardIcon">${card.icon}</span><strong>${card.name}</strong><small>${card.text}</small><em>${card.kind}</em></button>`;
+      return `<button class="combatCard kind-${card.kind}" data-combat-card="${index}" style="--fan-r:${(offset * 2.4).toFixed(1)}deg;--fan-y:${Math.abs(offset * 2.2).toFixed(1)}px" ${disabled ? 'disabled' : ''}><span class="combatCardCost">${card.cost}</span>${cardArtMarkup(card.id)}<strong>${card.name}</strong><small>${card.text}</small><em>${card.kind}</em></button>`;
     }).join('');
     const area = ['forest', 'cave', 'town', 'world'].includes(combat.origin?.area) ? combat.origin.area : 'world';
     const enemyFigure = enemyFigureMarkup(enemy.id, { boss: combat.boss, broken: combat.broken, effect: combatFx.enemy });
@@ -462,11 +467,12 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
       const depth = Number(rawValue);
       const metal = METALS[depth];
       if (!metal?.gate) return notify('That mine gate is not available.', 'bad');
+      if (!canChallengeMineGate(state, depth)) return notify(`Travel to ${getMineGateLocation(depth)?.name || 'that mine'} first.`, 'bad');
       return startEncounter({
         boss: true,
         enemyId: metal.gate.id,
         gateDepth: depth,
-        origin: { area: 'cave', pos: [...(state.explore.worldPos || [0, 0])], yaw: 0, z: 0 }
+        origin: { area: state.explore.area, pos: [...(state.explore.worldPos || [0, 0])], yaw: 0, z: 0 }
       }).ok;
     }
     if (action === 'equip') {
@@ -475,11 +481,22 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
     }
     if (action === 'unequip') return applyResult(equipItem(state, rawValue, null), `unequip ${rawValue}`, 'Item removed');
     if (action === 'restore') return applyResult(restoreTown(state, rawValue), `restore ${rawValue}`, result => `${result.project.name} restored to Lv ${result.level}`);
+    if (action === 'route-service') {
+      close();
+      return onJourneyAction({ serviceId: rawValue, worldAction: 'service' });
+    }
+    if (action === 'open-market') return open('market');
     if (action === 'sell-material') {
       const [key, price, amount] = rawValue.split('|');
-      return applyResult(sellMaterial(state, key, Number(price), amount === 'all' ? 'all' : Number(amount)), `sell ${key}`, result => `+${result.coins} coin`);
+      const result = sellMaterial(state, key, Number(price), amount === 'all' ? 'all' : Number(amount));
+      if (result.ok) recordTradeCoins(state, result.coins);
+      return applyResult(result, `sell ${key}`, value => `+${value.coins} coin`);
     }
-    if (action === 'sell-gear') return applyResult(sellGear(state, Number(rawValue)), `sell gear ${rawValue}`, result => `Sold for ${result.coins} coin`);
+    if (action === 'sell-gear') {
+      const result = sellGear(state, Number(rawValue));
+      if (result.ok) recordTradeCoins(state, result.coins);
+      return applyResult(result, `sell gear ${rawValue}`, value => `Sold for ${value.coins} coin`);
+    }
     return false;
   }
 
@@ -493,7 +510,7 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
     }
     if (goal.metalId) forgeMetal = goal.metalId;
     if (goal.gateDepth) return onAction('challenge-gate', goal.gateDepth);
-    if (goal.landmarkId) {
+    if (goal.landmarkId || goal.serviceId) {
       close();
       return onJourneyAction(goal);
     }

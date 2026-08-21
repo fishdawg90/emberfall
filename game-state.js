@@ -86,7 +86,9 @@ export function createFreshState() {
     town: { forge: 1, smelter: 1, market: 1, inn: 0 },
     journey: {
       introSeen: false,
-      towns: { town: true, frostmere: false, sunspire: false, tidewatch: false }
+      towns: { town: true, frostmere: false, sunspire: false, tidewatch: false },
+      services: { mine: false, smelter: false, forge: false, market: false },
+      tradeCoins: 0
     },
     unifiedV20: true,
     explore: freshExplore()
@@ -198,8 +200,19 @@ export function normalizeSave(raw) {
   merged.journey = {
     ...base.journey,
     ...objectOrEmpty(source.journey),
-    towns: { ...base.journey.towns, ...objectOrEmpty(source.journey?.towns) }
+    towns: { ...base.journey.towns, ...objectOrEmpty(source.journey?.towns) },
+    services: { ...base.journey.services, ...objectOrEmpty(source.journey?.services) },
+    tradeCoins: Math.max(0, finiteOr(source.journey?.tradeCoins, base.journey.tradeCoins))
   };
+  if (!source.journey?.services) {
+    const progressed = Boolean(source.eq?.weapon)
+      || (Number(source.open) || 0) > 0
+      || Object.entries(objectOrEmpty(source.journey?.towns)).some(([id, visited]) => id !== 'town' && visited);
+    if (progressed) {
+      merged.journey.services = { mine: true, smelter: true, forge: true, market: true };
+      merged.journey.tradeCoins = Math.max(15, merged.journey.tradeCoins);
+    }
+  }
   merged.explore = normalizeExplore(source.explore, source);
   merged.forgeAnim = null;
 

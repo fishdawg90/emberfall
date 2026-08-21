@@ -51,8 +51,14 @@ export function getMarketMultiplier(state) {
   return 1 + (Math.max(1, getTownLevel(state, 'market')) - 1) * 0.05;
 }
 
-export function getSmelterMultiplier(state) {
-  return 1 + (Math.max(1, getTownLevel(state, 'smelter')) - 1) * 0.08;
+export function getSmelterMultiplier(state, metalId = state.smelt) {
+  const restoration = 1 + (Math.max(1, getTownLevel(state, 'smelter')) - 1) * 0.08;
+  const regionalFacilities = {
+    deepsteel: state.journey?.towns?.frostmere ? 1.12 : 1,
+    starsilver: state.journey?.towns?.sunspire ? 1.18 : 1,
+    aetherite: state.journey?.towns?.tidewatch ? 1.25 : 1
+  };
+  return restoration * (regionalFacilities[metalId] || 1);
 }
 
 export function getUpgradeRank(state, activity, upgrade) {
@@ -211,7 +217,7 @@ export function runWorkCycle(state, options = {}) {
     }
     state.inv[oreKey] -= metal.cost;
     amount = Math.max(1, scaled(1, multiplier, random));
-    amount = Math.max(1, scaled(amount, getSmelterMultiplier(state), random));
+    amount = Math.max(1, scaled(amount, getSmelterMultiplier(state, metal.id), random));
     state.inv[`${metal.id}Bar`] += amount;
     kind = 'bar';
   }

@@ -15,8 +15,8 @@ export const WORLD_LANDMARKS = Object.freeze([
     icon: '⌂',
     x: 0,
     z: 8,
-    entry: Object.freeze({ x: 0, z: 126 }),
-    radius: 142,
+    entry: Object.freeze({ x: 0, z: 96 }),
+    radius: 108,
     building: 'c'
   }),
   Object.freeze({
@@ -87,10 +87,10 @@ export const WORLD_LANDMARKS = Object.freeze([
 ]);
 
 export const WORLD_ROUTES = Object.freeze([
-  Object.freeze({ id: 'greyfen-north', width: 7, points: Object.freeze([[10, -118], [-48, -153], [-124, -187], [-211, -191]]) }),
+  Object.freeze({ id: 'greyfen-north', width: 7, points: Object.freeze([[10, -101], [-48, -153], [-124, -187], [-211, -191]]) }),
   Object.freeze({ id: 'greyfen-east', width: 6, points: Object.freeze([[72, 32], [132, 20], [178, 5], [214, -7]]) }),
-  Object.freeze({ id: 'whisperwood-road', width: 6, points: Object.freeze([[0, 126], [-55, 146], [-128, 170], [-203, 153]]) }),
-  Object.freeze({ id: 'lower-ways-road', width: 6, points: Object.freeze([[0, 126], [68, 142], [139, 181], [203, 158]]) }),
+  Object.freeze({ id: 'whisperwood-road', width: 6, points: Object.freeze([[0, 96], [-55, 146], [-128, 170], [-203, 153]]) }),
+  Object.freeze({ id: 'lower-ways-road', width: 6, points: Object.freeze([[0, 96], [68, 142], [139, 181], [203, 158]]) }),
   Object.freeze({ id: 'tidewatch-road', width: 5.5, points: Object.freeze([[139, 181], [172, 215], [192, 249]]) }),
   Object.freeze({ id: 'frostmere-street', width: 4.5, points: Object.freeze([[-258, -210], [-230, -210], [-202, -210]]) }),
   Object.freeze({ id: 'frostmere-crossing', width: 4, points: Object.freeze([[-230, -236], [-230, -210], [-230, -184]]) }),
@@ -134,8 +134,32 @@ export function isGuardianAvailable(state, landmarkOrId) {
 }
 
 export function getFastTravelLandmarks(state) {
-  return WORLD_LANDMARKS.filter(landmark => landmark.id === 'town'
+  return getKnownLandmarks(state).filter(landmark => landmark.id === 'town'
+    || (landmark.kind === 'town' && Boolean(state?.journey?.towns?.[landmark.id]))
     || (landmark.kind === 'region' && Boolean(state?.explore?.claimed?.[landmark.area])));
+}
+
+export function hasCompletedGreyfenBriefing(state) {
+  const services = state?.journey?.services || {};
+  const foundServices = ['mine', 'smelter', 'forge', 'market'].every(id => Boolean(services[id]));
+  const traded = (Number(state?.journey?.tradeCoins) || 0) >= 15;
+  return foundServices && traded;
+}
+
+export function getKnownLandmarks(state) {
+  const visits = state?.journey?.towns || {};
+  const known = new Set(['town']);
+  if (hasCompletedGreyfenBriefing(state)) known.add('frostmere');
+  if (visits.frostmere || state?.explore?.claimed?.cave || (Number(state?.open) || 0) > 0) known.add('cave');
+  if (state?.explore?.claimed?.cave) known.add('forest');
+  if (state?.explore?.claimed?.forest || visits.sunspire) known.add('sunspire');
+  if (visits.sunspire || visits.tidewatch) known.add('tidewatch');
+  return WORLD_LANDMARKS.filter(landmark => known.has(landmark.id));
+}
+
+export function isLandmarkKnown(state, landmarkOrId) {
+  const id = typeof landmarkOrId === 'string' ? landmarkOrId : landmarkOrId?.id;
+  return getKnownLandmarks(state).some(landmark => landmark.id === id);
 }
 
 export function readHostedWorldPosition(explore, fallback = getWorldLandmark('town').entry) {

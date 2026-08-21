@@ -36,6 +36,25 @@ const FIGURES = Object.freeze({
     <i class="enemyPart abyssShard abyssShardA"></i><i class="enemyPart abyssShard abyssShardB"></i><i class="enemyPart abyssShard abyssShardC"></i>`
 });
 
+const CARD_ART = Object.freeze({
+  slash: ['attack', '╱'],
+  splitter: ['breaker', '✣'],
+  guard: ['guard', '⬒'],
+  feint: ['utility', '↝'],
+  heavy: ['attack', '┃'],
+  brace: ['guard', '▣'],
+  measured: ['attack', '†'],
+  driving: ['breaker', '↯'],
+  sunder: ['breaker', '✣'],
+  silvercut: ['silver', '☾'],
+  aetherbreak: ['aether', '✦']
+});
+
+export function cardArtMarkup(cardId) {
+  const [theme, glyph] = CARD_ART[cardId] || ['attack', '╱'];
+  return `<span class="combatCardArt art-${cardId} theme-${theme}" aria-hidden="true"><i class="artHorizon"></i><i class="artFigure"></i><i class="artWeapon">${glyph}</i><i class="artBurst"></i></span>`;
+}
+
 export function combatSceneryMarkup(area = 'world') {
   const safeArea = ['world', 'forest', 'cave', 'town'].includes(area) ? area : 'world';
   return `<div class="combatScenery scenery-${safeArea}" aria-hidden="true"><i class="sceneMist mistA"></i><i class="sceneMist mistB"></i><i class="sceneMountain mountainA"></i><i class="sceneMountain mountainB"></i><i class="sceneTree treeA"></i><i class="sceneTree treeB"></i><i class="sceneTree treeC"></i><i class="sceneCrystal crystalA"></i><i class="sceneCrystal crystalB"></i><i class="sceneLantern lanternA"></i><i class="sceneLantern lanternB"></i><i class="sceneSpark sparkA"></i><i class="sceneSpark sparkB"></i><i class="sceneSpark sparkC"></i><i class="sceneSpark sparkD"></i><i class="sceneRoad"></i></div>`;

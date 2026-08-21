@@ -114,6 +114,15 @@ The hosted repo is intentionally small:
     regional scenery, impact feedback, and visible Tunnel Mauler, Glass Warden,
     and Abyss Sentinel models. This also restores reachable named gates for the
     higher metal tiers while retaining card combat and save compatibility.
+11. **Living-world guidance pass (integrated).** Greyfen now teaches its mine,
+    smelter, smithy, market, and first trade through a saved task board and
+    walk-to markers before revealing Frostmere. Later towns and regions are
+    discovered in sequence; their local mines gate Starsilver and Aetherite,
+    while regional foundries improve matching smelting yields. A live minimap,
+    explicit safe-town boundaries, compact town layouts, roaming townsfolk,
+    a sun and moving clouds make travel state readable in first person. Route
+    actions resume after victorious road encounters, and combat cards now use
+    distinct lightweight illustrations without adding an image-download cost.
 
 ## Current working checkpoint
 
