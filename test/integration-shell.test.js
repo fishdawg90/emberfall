@@ -27,7 +27,7 @@ test('hosted shell retains mobile navigation, camera direction, assets, roads, a
 test('migrated gameplay dock is loaded without replacing the Three.js runtime', () => {
   assert.match(html, /class="gameDock"/);
   assert.match(html, /id="gamePanel"/);
-  assert.match(html, /game\.js\?v=15/);
+  assert.match(html, /game\.js\?v=16/);
   assert.match(game, /createGameUI/);
   assert.match(game, /new THREE\.WebGLRenderer/);
   assert.match(game, /saveGameState/);
@@ -92,6 +92,9 @@ test('world map supports walking targets and gated fast travel', () => {
 
 test('progressive discovery and live minimap connect routes to safe towns', () => {
   assert.match(html, /id="miniMapCanvas"/);
+  assert.match(html, /id="miniMapToggle"/);
+  assert.match(html, /id="playerVitals"/);
+  assert.match(html, /id="playerHealthText"/);
   assert.match(html, /id="miniSafety"/);
   assert.match(html, /SAFE TOWN/);
   assert.match(game, /getKnownLandmarks/);
@@ -99,6 +102,8 @@ test('progressive discovery and live minimap connect routes to safe towns', () =
   assert.match(game, /Route on foot/);
   assert.match(game, /recordServiceVisit/);
   assert.match(game, /isLandmarkKnown/);
+  assert.match(game, /setMiniMapCollapsed/);
+  assert.match(game, /updatePlayerHealth/);
   assert.match(worldVisuals, /function createLivingTowns/);
   assert.match(worldVisuals, /living-towns-and-safe-boundaries/);
   assert.match(worldVisuals, /function createSkyLife/);
@@ -251,9 +256,19 @@ test('Lower Ways visuals use mobile-budget instancing, authored CC0 rocks, cave 
   assert.match(caveVisuals, /addAuthoredRockLandmarks/);
   assert.match(caveVisuals, /drawCaveMiniMap/);
   assert.match(caveVisuals, /claimedHeals/);
+  assert.match(caveVisuals, /lower-ways-player-lantern/);
+  assert.match(caveVisuals, /explorerLight\.position\.set\(playerPosition/);
   assert.match(game, /applyCaveAtmosphere/);
   assert.match(game, /caveWorld\?\.addRockAsset\(assets\.rock\)/);
-  assert.match(game, /DANGER · \$\{gameState\.explore\.hp\}/);
+  assert.match(game, /miniSafety\.textContent='DANGER'/);
+});
+
+test('autowalk smooths saw-tooth routes and returns the camera to travel heading after touch look', () => {
+  assert.match(game, /smoothNavigationPath\(rawPath,blocked/);
+  assert.match(game, /routeLookAhead\(player,nav,navI/);
+  assert.match(game, /yaw=dampAngle\(yaw,heading/);
+  assert.match(game, /if\(looked&&nav\.length\)routeHeadingReturn=\.38/);
+  assert.match(game, /caveMode\(\)\?rawPath:smoothNavigationPath/);
 });
 
 test('phone UI keeps locked progression visible and raises gameplay text sizes', async () => {

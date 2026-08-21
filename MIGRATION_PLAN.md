@@ -165,6 +165,14 @@ The hosted repo is intentionally small:
     Deepsteel through a dedicated reward overlay. Instanced floors, walls,
     ceilings, rubble, crystals, and supports keep the Android draw-call budget
     bounded.
+16. **Mobile exploration polish (integrated).** Player health is now always
+    visible in a compact world HUD, while the live minimap can collapse to a
+    small location/safety strip and remembers that preference. The Lower Ways
+    uses brighter materials, wider fog visibility, and one shadow-free light
+    that follows the player. World A* routes pass through collision-aware
+    line-of-sight smoothing to remove diagonal saw-tooth movement; cave routes
+    remain on their legal maze graph. Drag-look remains fully available during
+    autowalk and eases back toward a route look-ahead when the touch is released.
 
 ## Current working checkpoint
 
