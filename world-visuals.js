@@ -180,6 +180,31 @@ export function createLivingTowns({ THREE, scene, height, landmarks, mobile = fa
     townId,
     colors.map(color => new THREE.MeshStandardMaterial({ color, roughness: 0.92 }))
   ]));
+  const dialogue = {
+    town: [
+      ['Mara', 'The town mine is just beyond the eastern stalls.'],
+      ['Oren', 'Ore first, then the smelter. The smithy needs finished bars.'],
+      ['Tess', 'Sell spare ore at the market before you take the north road.'],
+      ['Bram', 'The boundary posts mark where road encounters can begin.'],
+      ['Edda', 'Every restored building makes Greyfen stronger.'],
+      ['Pell', 'Pin a mission in your journal if you need a route.']
+    ],
+    frostmere: [
+      ['Yrsa', 'Our cold foundry gets more from Deepsteel ore.'],
+      ['Hale', 'The Lower Ways lie beyond the southern road.'],
+      ['Nim', 'Greyfen traders are welcome here again.']
+    ],
+    sunspire: [
+      ['Cassia', 'The Glass Veins open only to a proven miner.'],
+      ['Rook', 'Sunspire’s furnaces waste less Star-silver.'],
+      ['Venn', 'Tidewatch waits beyond the long coastal road.']
+    ],
+    tidewatch: [
+      ['Mira', 'Our buried mine reaches an impossible golden sky.'],
+      ['Cor', 'The sea furnaces refine Aetherite with care.'],
+      ['Sella', 'Stay inside the posts if you need a safe rest.']
+    ]
+  };
   const npcs = [];
   for (const town of townLandmarks) {
     const count = town.id === 'town' ? (mobile ? 7 : 10) : (mobile ? 4 : 6);
@@ -197,7 +222,8 @@ export function createLivingTowns({ THREE, scene, height, landmarks, mobile = fa
       npc.add(body, head, leftLeg, rightLeg);
       const radius = 7 + index % 4 * 3.2;
       const phase = index / count * Math.PI * 2;
-      npc.userData = { town, radius, phase, speed: 0.1 + index % 3 * 0.025, leftLeg, rightLeg };
+      const [name, line] = dialogue[town.id][index % dialogue[town.id].length];
+      npc.userData = { id: `${town.id}-${index}`, town, radius, phase, speed: 0.1 + index % 3 * 0.025, leftLeg, rightLeg, name, line };
       npcs.push(npc);
       group.add(npc);
     }
@@ -216,6 +242,18 @@ export function createLivingTowns({ THREE, scene, height, landmarks, mobile = fa
         data.leftLeg.rotation.x = Math.sin(time * 5 + data.phase) * 0.42;
         data.rightLeg.rotation.x = -data.leftLeg.rotation.x;
       }
+    },
+    nearby(position, maxDistance = 7.5) {
+      let nearest = null;
+      let nearestDistance = maxDistance;
+      for (const npc of npcs) {
+        const distance = Math.hypot(npc.position.x - position.x, npc.position.z - position.z);
+        if (distance < nearestDistance) {
+          nearest = npc;
+          nearestDistance = distance;
+        }
+      }
+      return nearest ? { npc: nearest, distance: nearestDistance, ...nearest.userData } : null;
     }
   };
 }

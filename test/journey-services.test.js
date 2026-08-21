@@ -4,8 +4,11 @@ import assert from 'node:assert/strict';
 import { createFreshState, normalizeSave } from '../game-state.js';
 import {
   canChallengeMineGate,
+  getActiveMission,
   getGreyfenTasks,
   getJourneyObjective,
+  getMissionJournal,
+  pinMission,
   recordServiceVisit,
   recordTownArrival,
   recordTradeCoins
@@ -45,6 +48,23 @@ test('equipping early cannot skip Greyfen discovery and market tasks', () => {
   assert.equal(getJourneyObjective(state).id, 'find-market');
   recordServiceVisit(state, 'market');
   assert.equal(getJourneyObjective(state).id, 'first-trade');
+});
+
+test('mission journal exposes campaign progress and persists an unlocked active mission', () => {
+  const state = createFreshState();
+  const fresh = getMissionJournal(state);
+  assert.equal(fresh.find(mission => mission.id === 'greyfen-apprenticeship').unlocked, true);
+  assert.equal(fresh.find(mission => mission.id === 'northern-survey').unlocked, false);
+  assert.equal(getActiveMission(state).id, 'greyfen-apprenticeship');
+  assert.equal(pinMission(state, 'restore-greyfen').code, 'mission-locked');
+
+  for (const service of ['mine', 'smelter', 'forge', 'market']) recordServiceVisit(state, service);
+  recordTradeCoins(state, 15);
+  state.gear.push({ id: 1, type: 'weapon', name: 'Iron Longsword' });
+  state.eq.weapon = 1;
+  assert.equal(pinMission(state, 'restore-greyfen').ok, true);
+  assert.equal(getActiveMission(state).id, 'restore-greyfen');
+  assert.equal(normalizeSave(state).journey.activeMission, 'restore-greyfen');
 });
 
 test('Greyfen task board and regional mine gates persist world-led progress', () => {

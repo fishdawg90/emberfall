@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { METALS, RECIPES } from '../game-catalog.js';
-import { createFreshState, loadGameState, normalizeSave, saveGameState } from '../game-state.js';
+import { COMPATIBLE_SAVE_KEYS, createFreshState, loadGameState, normalizeSave, resetGameState, saveGameState } from '../game-state.js';
 import {
   equipItem,
   forgeItem,
@@ -24,9 +24,19 @@ function memoryStorage(entries = {}) {
   return {
     getItem(key) { return values.has(key) ? values.get(key) : null; },
     setItem(key, value) { values.set(key, String(value)); },
+    removeItem(key) { values.delete(key); },
     values
   };
 }
+
+test('reset clears every save alias and writes a clean compatible state', () => {
+  const storage = memoryStorage(Object.fromEntries(COMPATIBLE_SAVE_KEYS.map(key => [key, JSON.stringify({ ...createFreshState(), coins: 999, last: 999 })])));
+  const reset = resetGameState(storage);
+  assert.deepEqual(reset.removed, [...COMPATIBLE_SAVE_KEYS]);
+  assert.equal(reset.errors.length, 0);
+  assert.equal(loadGameState(storage).state.coins, 55);
+  assert.equal(storage.values.has('emberfall_depths_v20_6'), false);
+});
 
 test('catalog keeps the original four tiers and 24 forge recipes', () => {
   assert.deepEqual(METALS.map(metal => metal.id), ['iron', 'deepsteel', 'starsilver', 'aetherite']);

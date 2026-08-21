@@ -24,7 +24,7 @@ test('hosted shell retains mobile navigation, camera direction, assets, roads, a
 test('migrated gameplay dock is loaded without replacing the Three.js runtime', () => {
   assert.match(html, /class="gameDock"/);
   assert.match(html, /id="gamePanel"/);
-  assert.match(html, /game\.js\?v=11/);
+  assert.match(html, /game\.js\?v=12/);
   assert.match(game, /createGameUI/);
   assert.match(game, /new THREE\.WebGLRenderer/);
   assert.match(game, /saveGameState/);
@@ -100,6 +100,17 @@ test('progressive discovery and live minimap connect routes to safe towns', () =
   assert.match(worldVisuals, /living-towns-and-safe-boundaries/);
   assert.match(worldVisuals, /function createSkyLife/);
   assert.match(worldVisuals, /sun-and-clouds/);
+});
+
+test('nearby NPCs speak passively and restoration animates complete service buildings', () => {
+  assert.match(html, /id="npcSpeech"/);
+  assert.match(game, /updateNpcSpeech/);
+  assert.match(worldVisuals, /nearby\(position/);
+  assert.match(worldVisuals, /The boundary posts mark/);
+  assert.match(game, /beginBuildingUpgrade/);
+  assert.match(game, /updateBuildingUpgrades/);
+  assert.match(game, /new THREE\.RingGeometry/);
+  assert.match(game, /action===`restore \$\{id\}`/);
 });
 
 test('coarse-pointer profile reduces expensive Android rendering work', () => {
@@ -185,14 +196,19 @@ test('production rewards fly as earned ore and bars into persistent inventory st
   assert.match(ui, /\.\.\.activityStack\(state, 'forging', result\.metal\)/);
 });
 
-test('quick intro and persistent journey objective connect the full gameplay loop', async () => {
+test('quick intro and mission journal connect the full gameplay loop', async () => {
   const ui = await readFile(new URL('game-ui.js', root), 'utf8');
   const journey = await readFile(new URL('journey-services.js', root), 'utf8');
   assert.match(html, /id="introOverlay"/);
   assert.match(html, /Rebuild the town\. Forge the road ahead/);
-  assert.match(html, /id="journeyHud"/);
+  assert.match(html, /id="missionTracker"/);
+  assert.match(html, /data-open-game-tab="journal"/);
+  assert.match(html, /id="missionRoute"/);
   assert.match(ui, /class="systemThread"/);
-  assert.match(ui, /getJourneyObjective/);
+  assert.match(ui, /getMissionJournal/);
+  assert.match(ui, /getActiveMission/);
+  assert.match(ui, /reset-confirm/);
+  assert.match(game, /resetGameState/);
   assert.match(ui, /challenge-gate/);
   assert.match(game, /recordTownArrival/);
   assert.match(game, /journeyWorldAction/);

@@ -2,7 +2,7 @@ import { ACTIVITIES, EQUIPMENT_SLOTS, METALS, RECIPES, TOWN_PROJECTS, UPGRADES }
 import { endExploreTurn, getCombatView, playExploreCard, startExploreCombat } from './combat-services.js';
 import { createActivityVisuals } from './activity-visuals.js';
 import { cardArtMarkup, combatSceneryMarkup, enemyFigureMarkup, playerWeaponMarkup } from './combat-visuals.js';
-import { canChallengeMineGate, getGreyfenTasks, getJourneyObjective, getMineGateLocation, recordTradeCoins } from './journey-services.js';
+import { canChallengeMineGate, getActiveMission, getGreyfenTasks, getMissionJournal, getMineGateLocation, pinMission, recordTradeCoins } from './journey-services.js';
 import {
   buyUpgrade,
   equipItem,
@@ -28,7 +28,7 @@ import {
   skillXpNeeded
 } from './gameplay-services.js';
 
-const TAB_LABELS = Object.freeze({ work: 'Production', forge: 'Forge', gear: 'Equipment', town: 'Greyfen', market: 'Market' });
+const TAB_LABELS = Object.freeze({ work: 'Production', forge: 'Forge', gear: 'Equipment', town: 'Greyfen', market: 'Market', journal: 'Mission Journal' });
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -50,19 +50,16 @@ function button(label, action, value = '', disabled = false, className = '') {
   return `<button class="${className}" data-action="${action}" data-value="${escapeHtml(value)}" ${disabled ? 'disabled' : ''}>${label}</button>`;
 }
 
-export function createGameUI({ getState, commit, onJourneyAction = () => false, debug = window.EmberDebug }) {
+export function createGameUI({ getState, commit, onJourneyAction = () => false, onBuildingUpgrade = () => false, onReset = () => false, debug = window.EmberDebug }) {
   const panel = document.getElementById('gamePanel');
   const body = document.getElementById('gamePanelBody');
   const title = document.getElementById('gamePanelTitle');
   const toast = document.getElementById('gameToast');
   const hud = document.getElementById('gameMenuButton');
   const combatPanel = document.getElementById('combatPanel');
-  const journeyHud = document.getElementById('journeyHud');
-  const journeyIcon = document.getElementById('journeyIcon');
-  const journeyChapter = document.getElementById('journeyChapter');
-  const journeyTitle = document.getElementById('journeyTitle');
-  const journeyDetail = document.getElementById('journeyDetail');
-  const journeyGo = document.getElementById('journeyGo');
+  const missionTracker = document.getElementById('missionTracker');
+  const missionTitle = document.getElementById('missionTitle');
+  const missionRoute = document.getElementById('missionRoute');
   const introOverlay = document.getElementById('introOverlay');
   const activityVisuals = createActivityVisuals({
     canvas: document.getElementById('activityCanvas'),
@@ -79,7 +76,8 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
   let combatFx = { enemy: '', player: '', weapon: '', impact: '' };
   let combatFxTimer = 0;
   let combatOutro = null;
-  let currentObjective = null;
+  let currentMission = null;
+  let resetRequested = false;
 
   function showCombatEffect({ enemy = '', player = '', weapon = '', impact = '', outro = null, duration = 560 } = {}) {
     combatFx = { enemy, player, weapon, impact };
@@ -138,14 +136,13 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
   }
 
   function renderJourney() {
-    currentObjective = getJourneyObjective(getState());
-    if (!journeyHud || !currentObjective) return;
-    journeyIcon.textContent = currentObjective.icon;
-    journeyChapter.textContent = currentObjective.chapter;
-    journeyTitle.textContent = currentObjective.title;
-    journeyDetail.textContent = currentObjective.detail;
-    journeyGo.textContent = currentObjective.button;
-    journeyHud.dataset.objective = currentObjective.id;
+    currentMission = getActiveMission(getState());
+    if (!missionTracker) return;
+    missionTracker.classList.toggle('empty', !currentMission);
+    missionTracker.dataset.mission = currentMission?.id || '';
+    missionTitle.textContent = currentMission?.title || 'All missions complete';
+    missionRoute.textContent = currentMission?.action?.button || 'OPEN';
+    missionRoute.disabled = !currentMission || Boolean(getState().explore?.combat);
   }
 
   function loopRibbon() {
@@ -333,6 +330,22 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
     return `<div class="townIntro"><small>GREYFEN TASK BOARD</small><h3>Learn the town, then open the roads</h3><p>Complete these local tasks to reveal the first destination beyond Greyfen’s safe boundary.</p></div><div class="townTasks">${tasks}</div><h3 class="sectionTitle">Restoration projects</h3><div class="townList">${projects}</div>`;
   }
 
+  function renderJournal() {
+    const state = getState();
+    const active = getActiveMission(state);
+    const missions = getMissionJournal(state).map(mission => {
+      const status = mission.complete ? 'complete' : !mission.unlocked ? 'locked' : mission.id === active?.id ? 'active' : 'available';
+      const controls = mission.complete || !mission.unlocked
+        ? ''
+        : `<div class="missionActions">${mission.id === active?.id ? '<b>ACTIVE</b>' : button('Set active', 'mission-pin', mission.id)}${button(mission.action?.button || 'OPEN', 'mission-go', mission.id, false, mission.id === active?.id ? 'primary' : '')}</div>`;
+      return `<article class="missionCard ${status}"><i>${mission.complete ? '✓' : mission.unlocked ? mission.icon : '◇'}</i><div><small>${mission.optional ? 'OPTIONAL · ' : ''}${mission.chapter}</small><strong>${escapeHtml(mission.title)}</strong><span>${escapeHtml(mission.detail)}</span><em>${escapeHtml(mission.progress)}</em></div>${controls}</article>`;
+    }).join('');
+    const reset = resetRequested
+      ? `<section class="resetConfirm"><strong>Start Emberfall over?</strong><p>This permanently clears inventory, equipment, town restoration, discoveries, missions, and combat progress on this device.</p><div>${button('Cancel', 'reset-cancel')}${button('Erase and restart', 'reset-confirm', '', false, 'danger')}</div></section>`
+      : `<section class="journalSettings"><div><small>SAVE MANAGEMENT</small><strong>Start a new journey</strong><span>Your current compatible v4/v20.x progress will be replaced.</span></div>${button('Reset progress…', 'reset-request')}</section>`;
+    return `<div class="townIntro"><small>MISSION JOURNAL</small><h3>Choose what Emberfall should guide you toward</h3><p>Set any discovered mission as active. Its small action button stays below the minimap while you explore.</p></div><div class="missionList">${missions}</div>${reset}`;
+  }
+
   function renderMarket() {
     const state = getState();
     const materials = getMaterialRows(state).filter(row => row.tier <= state.open).map(row => `<div class="marketRow" style="--metal:${row.metal.color}"><i>${row.metal.icon}</i><div><strong>${row.name}</strong><span>${row.count} owned · ${row.value}c each</span></div>${button('Sell 1', 'sell-material', `${row.key}|${row.value}|1`, row.count < 1)}${button('All', 'sell-material', `${row.key}|${row.value}|all`, row.count < 1)}</div>`).join('');
@@ -376,7 +389,7 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
 
   function renderBody(preserveScroll = false) {
     const scrollTop = body.scrollTop;
-    const renderers = { work: renderWork, forge: renderForge, gear: renderGear, town: renderTown, market: renderMarket };
+    const renderers = { work: renderWork, forge: renderForge, gear: renderGear, town: renderTown, market: renderMarket, journal: renderJournal };
     title.textContent = TAB_LABELS[activeTab];
     document.querySelectorAll('[data-game-tab]').forEach(element => element.classList.toggle('active', element.dataset.gameTab === activeTab));
     body.innerHTML = loopRibbon() + renderers[activeTab]();
@@ -421,12 +434,51 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
     activityVisuals.hide();
   }
 
+  function performMissionAction(missionOrAction) {
+    const goal = missionOrAction?.action || missionOrAction;
+    if (!goal || getState().explore?.combat) return false;
+    if (goal.activity && getState().active !== goal.activity) {
+      const result = selectActivity(getState(), goal.activity);
+      if (result.ok) commitAction(`mission selects ${goal.activity}`);
+    }
+    if (goal.metalId) forgeMetal = goal.metalId;
+    if (goal.gateDepth) return onAction('challenge-gate', goal.gateDepth);
+    if (goal.landmarkId || goal.serviceId) {
+      close();
+      return onJourneyAction(goal);
+    }
+    if (goal.tab) {
+      open(goal.tab);
+      return true;
+    }
+    return false;
+  }
+
   function onAction(action, rawValue) {
     const state = getState();
     if (action === 'loop-tab') {
       if (rawValue === 'world') close();
       else open(rawValue);
       return true;
+    }
+    if (action === 'mission-pin') return applyResult(pinMission(state, rawValue), `pin mission ${rawValue}`, result => `${result.mission.title} is now active`);
+    if (action === 'mission-go') {
+      const mission = getMissionJournal(state).find(entry => entry.id === rawValue && entry.unlocked && !entry.complete);
+      return mission ? performMissionAction(mission) : notify('That mission is not currently available.', 'bad');
+    }
+    if (action === 'reset-request') {
+      resetRequested = true;
+      renderBody(true);
+      return true;
+    }
+    if (action === 'reset-cancel') {
+      resetRequested = false;
+      renderBody(true);
+      return true;
+    }
+    if (action === 'reset-confirm') {
+      resetRequested = false;
+      return onReset();
     }
     if (action === 'select-activity') return applyResult(selectActivity(state, rawValue), 'select activity');
     if (action === 'select-depth') return applyResult(selectMineDepth(state, Number(rawValue)), 'select mine depth');
@@ -480,7 +532,14 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
       return applyResult(equipItem(state, item?.type, Number(rawValue)), `equip ${rawValue}`, item ? `${item.name} equipped` : null);
     }
     if (action === 'unequip') return applyResult(equipItem(state, rawValue, null), `unequip ${rawValue}`, 'Item removed');
-    if (action === 'restore') return applyResult(restoreTown(state, rawValue), `restore ${rawValue}`, result => `${result.project.name} restored to Lv ${result.level}`);
+    if (action === 'restore') {
+      const restored = applyResult(restoreTown(state, rawValue), `restore ${rawValue}`, result => `${result.project.name} restored to Lv ${result.level}`);
+      if (restored) {
+        close();
+        onBuildingUpgrade(rawValue);
+      }
+      return restored;
+    }
     if (action === 'route-service') {
       close();
       return onJourneyAction({ serviceId: rawValue, worldAction: 'service' });
@@ -501,22 +560,8 @@ export function createGameUI({ getState, commit, onJourneyAction = () => false, 
   }
 
   document.querySelectorAll('[data-open-game-tab]').forEach(element => element.addEventListener('click', () => open(element.dataset.openGameTab)));
-  journeyGo?.addEventListener('click', () => {
-    const goal = currentObjective || getJourneyObjective(getState());
-    if (!goal || getState().explore?.combat) return;
-    if (goal.activity && getState().active !== goal.activity) {
-      const result = selectActivity(getState(), goal.activity);
-      if (result.ok) commitAction(`journey selects ${goal.activity}`);
-    }
-    if (goal.metalId) forgeMetal = goal.metalId;
-    if (goal.gateDepth) return onAction('challenge-gate', goal.gateDepth);
-    if (goal.landmarkId || goal.serviceId) {
-      close();
-      return onJourneyAction(goal);
-    }
-    if (goal.tab) open(goal.tab);
-  });
-  document.getElementById('journeyHelp')?.addEventListener('click', () => showIntro(true));
+  missionRoute?.addEventListener('click', () => performMissionAction(currentMission));
+  document.getElementById('missionHelp')?.addEventListener('click', () => showIntro(true));
   document.getElementById('introBegin')?.addEventListener('click', () => hideIntro(true));
   document.getElementById('gamePanelClose').addEventListener('click', close);
   document.getElementById('gamePanelTabs').addEventListener('click', event => {

@@ -123,6 +123,15 @@ The hosted repo is intentionally small:
     a sun and moving clouds make travel state readable in first person. Route
     actions resume after victorious road encounters, and combat cards now use
     distinct lightweight illustrations without adding an image-download cost.
+12. **Mission and town feedback pass (integrated).** The large objective ribbon
+    is replaced by a persistent journal of current, completed, optional, and
+    still-locked missions. One discovered mission can be pinned, with its
+    contextual Route/Open control kept beneath the live minimap. Townsfolk now
+    speak automatically in projected bubbles when the player walks near them.
+    Restoring a building closes the menu, walks the player to the structure,
+    and reveals its new level with added props, a rise/pulse, and a construction
+    ring. A two-step journal action can clear all compatible save aliases and
+    restart from a clean v4-compatible state.
 
 ## Current working checkpoint
 

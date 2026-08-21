@@ -86,6 +86,7 @@ export function createFreshState() {
     town: { forge: 1, smelter: 1, market: 1, inn: 0 },
     journey: {
       introSeen: false,
+      activeMission: null,
       towns: { town: true, frostmere: false, sunspire: false, tidewatch: false },
       services: { mine: false, smelter: false, forge: false, market: false },
       tradeCoins: 0
@@ -204,6 +205,9 @@ export function normalizeSave(raw) {
     services: { ...base.journey.services, ...objectOrEmpty(source.journey?.services) },
     tradeCoins: Math.max(0, finiteOr(source.journey?.tradeCoins, base.journey.tradeCoins))
   };
+  merged.journey.activeMission = typeof source.journey?.activeMission === 'string'
+    ? source.journey.activeMission
+    : null;
   if (!source.journey?.services) {
     const progressed = Boolean(source.eq?.weapon)
       || (Number(source.open) || 0) > 0
@@ -291,6 +295,25 @@ export function saveGameState(state, storage = defaultStorage()) {
     }
   }
   return { state: normalized, written, errors };
+}
+
+/**
+ * Clear every compatible alias before writing a brand-new state. Removing all
+ * aliases prevents a newer legacy timestamp from resurrecting old progress.
+ */
+export function resetGameState(storage = defaultStorage()) {
+  const removed = [];
+  const errors = [];
+  for (const key of COMPATIBLE_SAVE_KEYS) {
+    try {
+      storage?.removeItem?.(key);
+      if (storage) removed.push(key);
+    } catch (error) {
+      errors.push({ key, message: String(error?.message || error) });
+    }
+  }
+  const saved = saveGameState(createFreshState(), storage);
+  return { ...saved, removed, errors: [...errors, ...saved.errors] };
 }
 
 export function getSaveSummary(state) {

@@ -170,3 +170,87 @@ export function getJourneyObjective(state) {
 
   return objective('emberfall-mastered', 'EMBERFALL RESTORED', '✦', 'Forge your strongest loadout', 'All roads and depths are open. Hunt masterworks and improve every skill.', { tab: 'forge', button: 'FORGE' });
 }
+
+const OBJECTIVE_MISSIONS = Object.freeze({
+  'find-mine': 'greyfen-apprenticeship',
+  'first-ore': 'greyfen-apprenticeship',
+  'find-smelter': 'greyfen-apprenticeship',
+  'first-bars': 'greyfen-apprenticeship',
+  'find-forge': 'greyfen-apprenticeship',
+  'first-forge': 'greyfen-apprenticeship',
+  'find-market': 'greyfen-apprenticeship',
+  'first-trade': 'greyfen-apprenticeship',
+  'first-equip': 'greyfen-apprenticeship',
+  'visit-frostmere': 'northern-survey',
+  'fund-inn': 'wayfarer-inn',
+  'restore-inn': 'wayfarer-inn',
+  'patrol-cave': 'lower-ways',
+  'guardian-cave': 'lower-ways',
+  'patrol-forest': 'whisperwood-road',
+  'guardian-forest': 'whisperwood-road',
+  'visit-sunspire': 'eastern-charter',
+  'reach-starsilver-mine': 'glass-veins',
+  'train-starsilver': 'glass-veins',
+  'gate-starsilver': 'glass-veins',
+  'visit-tidewatch': 'coastal-bounty',
+  'reach-aetherite-mine': 'buried-sky',
+  'train-aetherite': 'buried-sky',
+  'gate-aetherite': 'buried-sky',
+  'emberfall-mastered': 'masterwork-hunt'
+});
+
+function equippedWeapon(state) {
+  return state.gear?.some(item => item?.type === 'weapon' && item.id === state.eq?.weapon);
+}
+
+function missionAction(current, missionId, fallback) {
+  return OBJECTIVE_MISSIONS[current.id] === missionId ? current : fallback;
+}
+
+export function getMissionJournal(state) {
+  const current = getJourneyObjective(state);
+  const currentMissionId = OBJECTIVE_MISSIONS[current.id]
+    || (/^(fund|restore)-/.test(current.id) ? 'restore-greyfen' : null);
+  const services = state.journey?.services || {};
+  const apprenticeshipSteps = [services.mine, services.smelter, services.forge, services.market, (Number(state.journey?.tradeCoins) || 0) >= 15, equippedWeapon(state)];
+  const apprenticeshipProgress = apprenticeshipSteps.filter(Boolean).length;
+  const apprenticeshipDone = apprenticeshipProgress === apprenticeshipSteps.length;
+  const visits = townVisits(state);
+  const townLevels = Object.entries(TOWN_PROJECTS).reduce((total, [id, project]) => total + Math.min(project.max, Number(state.town?.[id]) || 0), 0);
+  const townMax = Object.values(TOWN_PROJECTS).reduce((total, project) => total + project.max, 0);
+  const restorationDone = townLevels >= townMax;
+  const missions = [
+    { id: 'greyfen-apprenticeship', chapter: 'GREYFEN', icon: '⌂', title: 'Greyfen apprenticeship', description: 'Learn the town, forge an iron weapon, earn coin at the market, and equip it.', unlocked: true, complete: apprenticeshipDone, progress: `${apprenticeshipProgress}/${apprenticeshipSteps.length} steps`, action: missionAction(current, 'greyfen-apprenticeship', { tab: 'town', button: 'OPEN' }) },
+    { id: 'northern-survey', chapter: 'THE NORTH ROAD', icon: '❄', title: 'Carry the survey to Frostmere', description: 'Cross Greyfen’s boundary and reopen contact with the northern hold.', unlocked: apprenticeshipDone, complete: Boolean(visits.frostmere), progress: visits.frostmere ? 'Frostmere reached' : 'Destination not reached', action: missionAction(current, 'northern-survey', { landmarkId: 'frostmere', worldAction: 'route', button: 'ROUTE' }) },
+    { id: 'wayfarer-inn', chapter: 'RESTORATION', icon: '⌂', title: 'Restore the Wayfarer Inn', description: 'Use travel and trade rewards to reopen Greyfen’s rooms for expeditions.', unlocked: Boolean(visits.frostmere), complete: (Number(state.town?.inn) || 0) >= 1, progress: `Inn level ${Number(state.town?.inn) || 0}/1`, action: missionAction(current, 'wayfarer-inn', { tab: 'town', button: 'OPEN' }) },
+    { id: 'lower-ways', chapter: 'DEEPSTEEL', icon: '◆', title: 'Secure the Lower Ways', description: 'Clear three patrols and defeat the guardian of the Deepsteel route.', unlocked: (Number(state.town?.inn) || 0) >= 1, complete: Boolean(state.explore?.claimed?.cave), progress: state.explore?.claimed?.cave ? 'Region secured' : `${Math.min(3, Number(state.explore?.regionWins?.cave) || 0)}/3 patrols`, action: missionAction(current, 'lower-ways', { landmarkId: 'cave', worldAction: 'route', button: 'ROUTE' }) },
+    { id: 'whisperwood-road', chapter: 'THE WILD ROAD', icon: '♣', title: 'Secure Whisperwood', description: 'Tame the forest road and break its guardian’s hold.', unlocked: Boolean(state.explore?.claimed?.cave), complete: Boolean(state.explore?.claimed?.forest), progress: state.explore?.claimed?.forest ? 'Region secured' : `${Math.min(3, Number(state.explore?.regionWins?.forest) || 0)}/3 patrols`, action: missionAction(current, 'whisperwood-road', { landmarkId: 'forest', worldAction: 'route', button: 'ROUTE' }) },
+    { id: 'eastern-charter', chapter: 'REUNITE EMBERFALL', icon: '☀', title: 'Deliver the Eastern Charter', description: 'Follow the opened road to Sunspire and its stronger foundry.', unlocked: Boolean(state.explore?.claimed?.forest), complete: Boolean(visits.sunspire), progress: visits.sunspire ? 'Sunspire reached' : 'Destination not reached', action: missionAction(current, 'eastern-charter', { landmarkId: 'sunspire', worldAction: 'route', button: 'ROUTE' }) },
+    { id: 'glass-veins', chapter: 'STAR-SILVER', icon: '✦', title: 'Open the Glass Veins', description: 'Find Sunspire’s mine and defeat the Glass Warden.', unlocked: Boolean(visits.sunspire), complete: (Number(state.open) || 0) >= 2, progress: (Number(state.open) || 0) >= 2 ? 'Star-silver opened' : `Mining level ${Number(state.skills?.mining?.l) || 1}/${METALS[2].mine}`, action: missionAction(current, 'glass-veins', { landmarkId: 'sunspire', worldAction: 'route', button: 'ROUTE' }) },
+    { id: 'coastal-bounty', chapter: 'REUNITE EMBERFALL', icon: '≋', title: 'Reach Tidewatch', description: 'Complete the overland delivery to Emberfall’s coastal refuge.', unlocked: (Number(state.open) || 0) >= 2, complete: Boolean(visits.tidewatch), progress: visits.tidewatch ? 'Tidewatch reached' : 'Destination not reached', action: missionAction(current, 'coastal-bounty', { landmarkId: 'tidewatch', worldAction: 'route', button: 'ROUTE' }) },
+    { id: 'buried-sky', chapter: 'AETHERITE', icon: '✧', title: 'Open the Buried Sky', description: 'Find Tidewatch’s deepest mine and defeat the Abyss Sentinel.', unlocked: Boolean(visits.tidewatch), complete: (Number(state.open) || 0) >= 3, progress: (Number(state.open) || 0) >= 3 ? 'Aetherite opened' : `Mining level ${Number(state.skills?.mining?.l) || 1}/${METALS[3].mine}`, action: missionAction(current, 'buried-sky', { landmarkId: 'tidewatch', worldAction: 'route', button: 'ROUTE' }) },
+    { id: 'restore-greyfen', chapter: 'ONGOING', icon: '⚒', title: 'Restore all of Greyfen', description: 'Raise every town building to its full restoration level.', unlocked: apprenticeshipDone, complete: restorationDone, optional: true, progress: `${townLevels}/${townMax} building levels`, action: { tab: 'town', button: 'OPEN' } },
+    { id: 'masterwork-hunt', chapter: 'ENDGAME', icon: '✦', title: 'Forge a legendary loadout', description: 'All roads are open. Hunt materials, master every skill, and perfect your gear.', unlocked: (Number(state.open) || 0) >= 3, complete: false, optional: true, progress: `Hero level ${Number(state.hero?.level) || 1}`, action: missionAction(current, 'masterwork-hunt', { tab: 'forge', button: 'FORGE' }) }
+  ];
+  return missions.map(mission => ({
+    ...mission,
+    current: mission.id === currentMissionId,
+    detail: mission.id === currentMissionId ? current.detail : mission.description,
+    action: { ...mission.action, missionId: mission.id }
+  }));
+}
+
+export function getActiveMission(state) {
+  const missions = getMissionJournal(state);
+  const pinned = missions.find(mission => mission.id === state.journey?.activeMission && mission.unlocked && !mission.complete);
+  return pinned || missions.find(mission => mission.current && mission.unlocked && !mission.complete) || missions.find(mission => mission.unlocked && !mission.complete) || null;
+}
+
+export function pinMission(state, missionId) {
+  const mission = getMissionJournal(state).find(entry => entry.id === missionId);
+  if (!mission || !mission.unlocked) return { ok: false, code: 'mission-locked', message: 'That mission has not been discovered yet.' };
+  if (mission.complete) return { ok: false, code: 'mission-complete', message: 'That mission is already complete.' };
+  state.journey ||= {};
+  state.journey.activeMission = mission.id;
+  return { ok: true, mission };
+}
