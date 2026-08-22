@@ -1,6 +1,8 @@
 // Renderer-only scenery for the hosted world. Gameplay locations and gates stay
 // in world-data.js; this module gives each destination a readable identity.
 
+import { SOCIAL_LINES, TOWN_RESIDENTS, getResidentDialogue, getResidentPlan, getTownClock } from './town-simulation.js';
+
 const TOWN_CLUSTERS = Object.freeze({
   town: Object.freeze([
     ['a', -62, -24, 0.88, 1.42], ['b', -60, 55, 0.9, 1.72],
@@ -135,18 +137,20 @@ export function createSkyLife({ THREE, scene, mobile = false }) {
   };
 }
 
-export function createLivingTowns({ THREE, scene, height, landmarks, mobile = false }) {
+export function createLivingTowns({ THREE, scene, height, landmarks, serviceLots = [], mobile = false }) {
   const group = new THREE.Group();
   group.name = 'living-towns-and-safe-boundaries';
   const townLandmarks = landmarks.filter(landmark => landmark.kind === 'town');
+  const townById = new Map(townLandmarks.map(town => [town.id, town]));
+  const serviceById = new Map(serviceLots.map(service => [service.id, service]));
   const postGeometry = new THREE.CylinderGeometry(0.13, 0.18, 1.35, 6);
   const postMaterial = new THREE.MeshStandardMaterial({ color: 0x806749, roughness: 0.94 });
-  const postCount = townLandmarks.reduce((total, town) => total + (town.id === 'town' ? 34 : 18), 0);
+  const postCount = townLandmarks.reduce((total, town) => total + (town.id === 'town' ? 42 : 18), 0);
   const posts = new THREE.InstancedMesh(postGeometry, postMaterial, postCount);
   const dummy = new THREE.Object3D();
   let postIndex = 0;
   for (const town of townLandmarks) {
-    const count = town.id === 'town' ? 34 : 18;
+    const count = town.id === 'town' ? 42 : 18;
     const boundary = town.radius - (town.id === 'town' ? 3 : 2);
     const gateAngle = Math.atan2(town.entry.z - town.z, town.entry.x - town.x);
     for (let index = 0; index < count; index += 1) {
@@ -166,84 +170,196 @@ export function createLivingTowns({ THREE, scene, height, landmarks, mobile = fa
   posts.castShadow = posts.receiveShadow = true;
   group.add(posts);
 
-  const bodyGeometry = new THREE.CylinderGeometry(0.2, 0.3, 0.68, 7);
-  const headGeometry = new THREE.SphereGeometry(0.2, 8, 6);
-  const legGeometry = new THREE.CylinderGeometry(0.075, 0.09, 0.48, 6);
-  const skin = new THREE.MeshStandardMaterial({ color: 0xa66f52, roughness: 0.9 });
-  const palettes = {
-    town: [0x6d3c32, 0x395b50, 0x4c4f73],
-    frostmere: [0x476779, 0x738990, 0x45536b],
-    sunspire: [0xaa663d, 0x87632f, 0x715044],
-    tidewatch: [0x317278, 0x4d667a, 0x386253]
+  const bodyGeometry = new THREE.CylinderGeometry(0.22, 0.31, 0.7, 7);
+  const headGeometry = new THREE.SphereGeometry(0.21, 8, 6);
+  const limbGeometry = new THREE.CylinderGeometry(0.065, 0.085, 0.5, 6);
+  const materialCache = new Map();
+  const material = color => {
+    if (!materialCache.has(color)) materialCache.set(color, new THREE.MeshStandardMaterial({ color, roughness: 0.9 }));
+    return materialCache.get(color);
   };
-  const clothMaterials = Object.fromEntries(Object.entries(palettes).map(([townId, colors]) => [
-    townId,
-    colors.map(color => new THREE.MeshStandardMaterial({ color, roughness: 0.92 }))
-  ]));
-  const dialogue = {
-    town: [
-      ['Mara', 'The town mine is just beyond the eastern stalls.'],
-      ['Oren', 'Ore first, then the smelter. The smithy needs finished bars.'],
-      ['Tess', 'Sell spare ore at the market before you take the north road.'],
-      ['Bram', 'The boundary posts mark where road encounters can begin.'],
-      ['Edda', 'Every restored building makes Greyfen stronger.'],
-      ['Pell', 'Pin a mission in your journal if you need a route.']
-    ],
-    frostmere: [
-      ['Yrsa', 'Our cold foundry gets more from Deepsteel ore.'],
-      ['Hale', 'The Lower Ways lie beyond the southern road.'],
-      ['Nim', 'Greyfen traders are welcome here again.']
-    ],
-    sunspire: [
-      ['Cassia', 'The Glass Veins open only to a proven miner.'],
-      ['Rook', 'Sunspire’s furnaces waste less Star-silver.'],
-      ['Venn', 'Tidewatch waits beyond the long coastal road.']
-    ],
-    tidewatch: [
-      ['Mira', 'Our buried mine reaches an impossible golden sky.'],
-      ['Cor', 'The sea furnaces refine Aetherite with care.'],
-      ['Sella', 'Stay inside the posts if you need a safe rest.']
-    ]
-  };
-  const npcs = [];
-  for (const town of townLandmarks) {
-    const count = town.id === 'town' ? (mobile ? 7 : 10) : (mobile ? 4 : 6);
-    for (let index = 0; index < count; index += 1) {
-      const npc = new THREE.Group();
-      const cloth = clothMaterials[town.id][index % 3];
-      const body = new THREE.Mesh(bodyGeometry, cloth);
-      body.position.y = 0.82;
-      const head = new THREE.Mesh(headGeometry, skin);
-      head.position.y = 1.38;
-      const leftLeg = new THREE.Mesh(legGeometry, cloth);
-      const rightLeg = new THREE.Mesh(legGeometry, cloth);
-      leftLeg.position.set(-0.11, 0.27, 0);
-      rightLeg.position.set(0.11, 0.27, 0);
-      npc.add(body, head, leftLeg, rightLeg);
-      const radius = 7 + index % 4 * 3.2;
-      const phase = index / count * Math.PI * 2;
-      const [name, line] = dialogue[town.id][index % dialogue[town.id].length];
-      npc.userData = { id: `${town.id}-${index}`, town, radius, phase, speed: 0.1 + index % 3 * 0.025, leftLeg, rightLeg, name, line };
-      npcs.push(npc);
-      group.add(npc);
+  const skinColors = [0x9b664b, 0xb47c59, 0x855740, 0xc18a64];
+
+  function mesh(geometry, color) {
+    const object = new THREE.Mesh(geometry, material(color));
+    object.castShadow = !mobile;
+    object.receiveShadow = true;
+    return object;
+  }
+
+  function addLimb(npc, x, y, color, arm = false) {
+    const pivot = new THREE.Group();
+    pivot.position.set(x, y, 0);
+    const part = mesh(limbGeometry, color);
+    part.position.y = -0.24;
+    if (arm) part.scale.set(.84, .92, .84);
+    pivot.add(part);
+    npc.add(pivot);
+    return pivot;
+  }
+
+  function addAppearance(npc, resident, index) {
+    const look = resident.appearance;
+    const accent = look.accent;
+    const headY = 1.43;
+    if (look.apron) {
+      const apron = mesh(new THREE.BoxGeometry(.39, .48, .035), accent);
+      apron.position.set(0, .77, .255);
+      apron.rotation.x = -.06;
+      npc.add(apron);
+    }
+    if (look.pack) {
+      const pack = mesh(new THREE.BoxGeometry(.35, .44, .18), accent);
+      pack.position.set(0, .83, -.28);
+      npc.add(pack);
+    }
+    if (look.satchel) {
+      const strap = mesh(new THREE.BoxGeometry(.035, .72, .035), accent);
+      strap.position.set(.03, .89, .23);
+      strap.rotation.z = -.48;
+      npc.add(strap);
+      const bag = mesh(new THREE.BoxGeometry(.23, .22, .1), accent);
+      bag.position.set(.25, .61, .24);
+      npc.add(bag);
+    }
+    if (look.beard) {
+      const beard = mesh(new THREE.ConeGeometry(.15, .3, 7), 0x4b3327);
+      beard.position.set(0, 1.27, .13);
+      beard.rotation.x = -.16;
+      npc.add(beard);
+    }
+    if (look.hair === 'bun') {
+      const hair = mesh(new THREE.SphereGeometry(.18, 7, 5), 0x4b3328);
+      hair.position.set(0, headY + .11, -.09);
+      const bun = mesh(new THREE.SphereGeometry(.09, 7, 5), 0x4b3328);
+      bun.position.set(0, headY + .2, -.18);
+      npc.add(hair, bun);
+    }
+    if (look.hat === 'brim') {
+      const brim = mesh(new THREE.CylinderGeometry(.29, .29, .045, 10), accent);
+      brim.position.y = headY + .2;
+      const crown = mesh(new THREE.CylinderGeometry(.16, .19, .2, 8), accent);
+      crown.position.y = headY + .3;
+      npc.add(brim, crown);
+    } else if (look.hat === 'cap') {
+      const cap = mesh(new THREE.SphereGeometry(.225, 8, 5, 0, Math.PI * 2, 0, Math.PI * .55), accent);
+      cap.position.y = headY + .13;
+      const peak = mesh(new THREE.BoxGeometry(.25, .035, .16), accent);
+      peak.position.set(0, headY + .13, .18);
+      npc.add(cap, peak);
+    } else if (look.hat === 'hood') {
+      const hood = mesh(new THREE.TorusGeometry(.22, .055, 6, 10), accent);
+      hood.position.set(0, headY, .08);
+      npc.add(hood);
+    } else if (look.hat === 'tall') {
+      const brim = mesh(new THREE.CylinderGeometry(.25, .25, .045, 9), accent);
+      brim.position.y = headY + .18;
+      const crown = mesh(new THREE.ConeGeometry(.18, .43, 8), accent);
+      crown.position.y = headY + .4;
+      npc.add(brim, crown);
+    } else if (!look.hair && index % 2) {
+      const hair = mesh(new THREE.SphereGeometry(.215, 8, 5, 0, Math.PI * 2, 0, Math.PI * .52), index % 3 ? 0x493329 : 0x6c5037);
+      hair.position.y = headY + .09;
+      npc.add(hair);
     }
   }
+
+  function residentAnchor(resident, anchor) {
+    const town = townById.get(resident.townId);
+    if (!town) return { x: 0, z: 0 };
+    if (anchor === 'home') return { x: town.x + resident.home[0], z: town.z + resident.home[1] };
+    const service = resident.townId === 'town' && serviceById.get(anchor === 'work' ? resident.work : anchor);
+    if (service) {
+      const front = service.rad * .72 + 1.65;
+      return { x: service.x + Math.sin(service.rot) * front, z: service.z + Math.cos(service.rot) * front };
+    }
+    const resolved = anchor === 'work' ? resident.work : anchor;
+    if (resolved === 'gate') return { x: town.entry.x, z: town.entry.z };
+    if (resolved === 'market') return { x: town.x + 5, z: town.z + 4 };
+    if (resolved === 'inn') return { x: town.x - 5, z: town.z - 5 };
+    if (resolved === 'foundry') return { x: town.x + 12, z: town.z - 3 };
+    if (resolved === 'lamps') return { x: town.x - 9, z: town.z + 8 };
+    if (resolved === 'mine') return { x: town.x + 15, z: town.z + 9 };
+    return { x: town.x, z: town.z };
+  }
+
+  function offsetAnchor(point, resident, anchor) {
+    if (anchor === 'home' || anchor === 'gate' || anchor === 'work') return point;
+    let hash = 0;
+    for (const character of resident.id) hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
+    const angle = hash % 628 / 100;
+    const radius = 1.35 + hash % 4 * .38;
+    return { x: point.x + Math.cos(angle) * radius, z: point.z + Math.sin(angle) * radius };
+  }
+
+  function homeLabel(resident) {
+    const town = townById.get(resident.townId);
+    if (!town) return 'A nearby home';
+    if (resident.townId !== 'town') return `${town.name} residence`;
+    const [x, z] = resident.home;
+    if (z > 45) return 'South Gate Row';
+    if (z < -40) return 'Wayfarer Lane';
+    if (x < -25) return 'West Croft';
+    if (x > 25) return 'East Foundry Row';
+    return 'Fountain Quarter';
+  }
+
+  const npcs = [];
+  const residents = TOWN_RESIDENTS.filter(resident => !mobile || resident.townId === 'town' || ['yrsa', 'cassia', 'mira'].includes(resident.id));
+  for (const [index, resident] of residents.entries()) {
+    const npc = new THREE.Group();
+    npc.name = `resident-${resident.id}`;
+    const look = resident.appearance;
+    const body = mesh(bodyGeometry, look.cloth);
+    body.position.y = .87;
+    const head = mesh(headGeometry, skinColors[index % skinColors.length]);
+    head.position.y = 1.43;
+    const leftLeg = addLimb(npc, -.12, .5, look.cloth);
+    const rightLeg = addLimb(npc, .12, .5, look.cloth);
+    const leftArm = addLimb(npc, -.29, 1.12, look.accent, true);
+    const rightArm = addLimb(npc, .29, 1.12, look.accent, true);
+    npc.add(body, head);
+    addAppearance(npc, resident, index);
+    npc.scale.setScalar(look.height || 1);
+    const workLabel = serviceById.get(resident.work)?.name || resident.work.replace(/^./, character => character.toUpperCase());
+    npc.userData = { resident, leftLeg, rightLeg, leftArm, rightArm, moving: false, social: false, activity: '', workLabel, homeLabel: homeLabel(resident) };
+    npcs.push(npc);
+    group.add(npc);
+  }
   scene.add(group);
+  let clock = getTownClock();
+
+  function updateResident(npc, time, currentClock) {
+    const data = npc.userData;
+    const plan = getResidentPlan(data.resident, currentClock.minute);
+    const from = offsetAnchor(residentAnchor(data.resident, plan.from), data.resident, plan.from);
+    const to = offsetAnchor(residentAnchor(data.resident, plan.to), data.resident, plan.to);
+    const eased = plan.progress * plan.progress * (3 - 2 * plan.progress);
+    const x = from.x + (to.x - from.x) * eased;
+    const z = from.z + (to.z - from.z) * eased;
+    npc.position.set(x, height(x, z), z);
+    data.moving = plan.moving;
+    data.social = plan.social;
+    data.activity = plan.activity;
+    if (plan.moving) npc.rotation.y = Math.atan2(to.x - from.x, to.z - from.z);
+    else if (plan.social) {
+      const centre = residentAnchor(data.resident, plan.from);
+      npc.rotation.y = Math.atan2(centre.x - x, centre.z - z);
+    }
+    const stride = plan.moving ? Math.sin(time * 7 + data.resident.id.length) * .48 : 0;
+    data.leftLeg.rotation.x = stride;
+    data.rightLeg.rotation.x = -stride;
+    data.leftArm.rotation.x = -stride * .7;
+    data.rightArm.rotation.x = stride * .7;
+    npc.position.y += plan.moving ? Math.abs(Math.sin(time * 7)) * .025 : Math.sin(time * 1.6 + data.resident.id.length) * .012;
+  }
+
   return {
     update(time) {
-      for (const npc of npcs) {
-        const data = npc.userData;
-        const angle = data.phase + time * data.speed;
-        const x = data.town.x + Math.cos(angle) * data.radius;
-        const z = data.town.z + Math.sin(angle * 0.93) * data.radius;
-        npc.position.set(x, height(x, z), z);
-        npc.rotation.y = -angle + Math.PI / 2;
-        npc.position.y += Math.sin(time * 5 + data.phase) * 0.025;
-        data.leftLeg.rotation.x = Math.sin(time * 5 + data.phase) * 0.42;
-        data.rightLeg.rotation.x = -data.leftLeg.rotation.x;
-      }
+      clock = getTownClock();
+      for (const npc of npcs) updateResident(npc, time, clock);
     },
-    nearby(position, maxDistance = 7.5) {
+    nearby(position, maxDistance = 5.2) {
       let nearest = null;
       let nearestDistance = maxDistance;
       for (const npc of npcs) {
@@ -253,8 +369,32 @@ export function createLivingTowns({ THREE, scene, height, landmarks, mobile = fa
           nearestDistance = distance;
         }
       }
-      return nearest ? { npc: nearest, distance: nearestDistance, ...nearest.userData } : null;
-    }
+      if (!nearest) return null;
+      const data = nearest.userData;
+      return {
+        npc: nearest,
+        distance: nearestDistance,
+        id: data.resident.id,
+        name: data.resident.name,
+        role: data.resident.role,
+        activity: data.activity,
+        work: data.workLabel,
+        resident: data.resident
+      };
+    },
+    ambient(position, maxDistance = 11) {
+      const available = npcs.filter(npc => npc.userData.social && Math.hypot(npc.position.x - position.x, npc.position.z - position.z) < maxDistance);
+      if (!available.length || Math.floor(Date.now() / 3600) % 3 === 0) return null;
+      const npc = available[Math.floor(Date.now() / 4200) % available.length];
+      return { npc, name: npc.userData.resident.name, line: SOCIAL_LINES[Math.floor(Date.now() / 5100 + npc.userData.resident.id.length) % SOCIAL_LINES.length] };
+    },
+    talk(id, objectiveId) {
+      const npc = npcs.find(entry => entry.userData.resident.id === id);
+      if (!npc) return null;
+      return { npc, ...getResidentDialogue(npc.userData.resident, objectiveId, clock.minute), work: npc.userData.workLabel, home: npc.userData.homeLabel };
+    },
+    getClock: () => clock,
+    residents: npcs
   };
 }
 

@@ -16,7 +16,7 @@ export const WORLD_LANDMARKS = Object.freeze([
     x: 0,
     z: 8,
     entry: Object.freeze({ x: 0, z: 96 }),
-    radius: 108,
+    radius: 92,
     building: 'c'
   }),
   Object.freeze({
@@ -87,7 +87,7 @@ export const WORLD_LANDMARKS = Object.freeze([
 ]);
 
 export const WORLD_ROUTES = Object.freeze([
-  Object.freeze({ id: 'greyfen-north', width: 7, points: Object.freeze([[10, -101], [-48, -153], [-124, -187], [-211, -191]]) }),
+  Object.freeze({ id: 'greyfen-north', width: 7, points: Object.freeze([[10, -83], [-48, -153], [-124, -187], [-211, -191]]) }),
   Object.freeze({ id: 'greyfen-east', width: 6, points: Object.freeze([[72, 32], [132, 20], [178, 5], [214, -7]]) }),
   Object.freeze({ id: 'whisperwood-road', width: 6, points: Object.freeze([[0, 96], [-55, 146], [-128, 170], [-203, 153]]) }),
   Object.freeze({ id: 'lower-ways-road', width: 6, points: Object.freeze([[0, 96], [68, 142], [139, 181], [203, 158]]) }),
