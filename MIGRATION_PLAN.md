@@ -195,6 +195,21 @@ The hosted repo is intentionally small:
     normal evacuation should. Mining scenes rebuild for the selected depth:
     warm timbered Iron Mouth, flooded cyan Deepsteel machinery, fractured
     violet Glass Veins, and the floating stone and starlight of the Buried Sky.
+19. **Living town simulation and spatial mission pass (integrated).** Eighteen
+    named residents now belong to specific towns, homes, and workplaces. Four
+    authored schedule types move them through an eight-real-minute day between
+    work, errands, the square, boundary, inn, and home; overlapping social
+    stops create visible conversations and passive overhead chatter. Modular
+    low-poly residents use individual colours, heights, hats, hair, aprons,
+    packs, satchels, and beards without adding a large mobile download. A
+    nearby Talk prompt opens one focused conversation card with the resident’s
+    current activity, workplace, home quarter, unique lines, and contextual
+    mission advice. Greyfen’s safe boundary is tighter and more legible, with
+    denser streets plus asset-backed lamps, benches, stalls, carts, fences, and
+    workplace details. Major location objectives can now begin with a short,
+    skippable camera briefing over the actual 3D destination; the same card can
+    immediately start its route, and viewed briefings persist in compatible
+    saves.
 
 ## Current working checkpoint
 
@@ -209,7 +224,8 @@ The hosted repo is intentionally small:
   visual integration, first-person station scenes, animated enemy models, cave
   solvability, deterministic furnishing, healing and coin caches, temporary
   run-card persistence/cleanup, Iron mitigation, stockpile saturation,
-  destination arrival validation, persistence, and guardian gating.
+  destination arrival validation, persistence, guardian gating, resident
+  schedules, contextual dialogue, and spatial mission briefings.
 
 ## Guardrails
 

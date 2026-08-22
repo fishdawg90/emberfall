@@ -92,6 +92,7 @@ export function createFreshState() {
     journey: {
       introSeen: false,
       activeMission: null,
+      briefings: [],
       towns: { town: true, frostmere: false, sunspire: false, tidewatch: false },
       services: { mine: false, smelter: false, forge: false, market: false },
       tradeCoins: 0
@@ -219,6 +220,7 @@ export function normalizeSave(raw) {
     ...objectOrEmpty(source.journey),
     towns: { ...base.journey.towns, ...objectOrEmpty(source.journey?.towns) },
     services: { ...base.journey.services, ...objectOrEmpty(source.journey?.services) },
+    briefings: arrayOrEmpty(source.journey?.briefings).filter(id => typeof id === 'string').slice(-64),
     tradeCoins: Math.max(0, finiteOr(source.journey?.tradeCoins, base.journey.tradeCoins))
   };
   merged.journey.activeMission = typeof source.journey?.activeMission === 'string'

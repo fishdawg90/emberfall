@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const root = new URL('../', import.meta.url);
-const [html, game, worldVisuals, activityVisuals, combatVisuals, caveData, caveServices, caveVisuals] = await Promise.all([
+const [html, game, worldVisuals, activityVisuals, combatVisuals, caveData, caveServices, caveVisuals, townSimulation, missionBriefings] = await Promise.all([
   readFile(new URL('index.html', root), 'utf8'),
   readFile(new URL('game.js', root), 'utf8'),
   readFile(new URL('world-visuals.js', root), 'utf8'),
@@ -11,7 +11,9 @@ const [html, game, worldVisuals, activityVisuals, combatVisuals, caveData, caveS
   readFile(new URL('combat-visuals.js', root), 'utf8'),
   readFile(new URL('cave-data.js', root), 'utf8'),
   readFile(new URL('cave-services.js', root), 'utf8'),
-  readFile(new URL('cave-visuals.js', root), 'utf8')
+  readFile(new URL('cave-visuals.js', root), 'utf8'),
+  readFile(new URL('town-simulation.js', root), 'utf8'),
+  readFile(new URL('mission-briefings.js', root), 'utf8')
 ]);
 
 test('hosted shell retains mobile navigation, camera direction, assets, roads, and debug report', () => {
@@ -27,7 +29,7 @@ test('hosted shell retains mobile navigation, camera direction, assets, roads, a
 test('migrated gameplay dock is loaded without replacing the Three.js runtime', () => {
   assert.match(html, /class="gameDock"/);
   assert.match(html, /id="gamePanel"/);
-  assert.match(html, /game\.js\?v=19/);
+  assert.match(html, /game\.js\?v=20/);
   assert.match(game, /createGameUI/);
   assert.match(game, /new THREE\.WebGLRenderer/);
   assert.match(game, /saveGameState/);
@@ -114,11 +116,37 @@ test('nearby NPCs speak passively and restoration animates complete service buil
   assert.match(html, /id="npcSpeech"/);
   assert.match(game, /updateNpcSpeech/);
   assert.match(worldVisuals, /nearby\(position/);
-  assert.match(worldVisuals, /The boundary posts mark/);
+  assert.match(worldVisuals, /const boundary = town\.radius/);
   assert.match(game, /beginBuildingUpgrade/);
   assert.match(game, /updateBuildingUpgrades/);
   assert.match(game, /new THREE\.RingGeometry/);
   assert.match(game, /action===`restore \$\{id\}`/);
+});
+
+test('named residents follow building schedules and open a focused conversation UI', () => {
+  assert.match(html, /id="talkPrompt"/);
+  assert.match(html, /id="dialogOverlay"/);
+  assert.match(html, /id="dialogHome"/);
+  assert.match(game, /townLife\.talk/);
+  assert.match(game, /openNearbyDialogue/);
+  assert.match(game, /serviceLots,mobile:MOBILE_PROFILE/);
+  assert.match(worldVisuals, /getResidentPlan/);
+  assert.match(worldVisuals, /homeLabel/);
+  assert.match(worldVisuals, /resident\.work/);
+  assert.match(townSimulation, /TOWN_DAY_SECONDS = 8 \* 60/);
+  for (const name of ['Mara Vale', 'Oren Flint', 'Pell Quill', 'Tess Lark', 'Edda Hearth']) assert.match(townSimulation, new RegExp(name));
+});
+
+test('mission objectives can introduce destinations with a skippable spatial camera briefing', () => {
+  assert.match(html, /id="missionBrief"/);
+  assert.match(html, /id="missionVignette"/);
+  assert.match(game, /getMissionBriefing/);
+  assert.match(game, /startMissionBriefing/);
+  assert.match(game, /resolveMissionPoint/);
+  assert.match(game, /camera\.position\.lerp/);
+  assert.match(game, /view \$\{objective\.id\} mission briefing/);
+  assert.match(missionBriefings, /GREYFEN ORIENTATION/);
+  assert.match(missionBriefings, /The Lower Ways/);
 });
 
 test('coarse-pointer profile reduces expensive Android rendering work', () => {

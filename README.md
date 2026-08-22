@@ -24,9 +24,14 @@ Ways entrance, while Iron, Deepsteel, Star Silver, and Aetherite mining use
 distinct first-person environments instead of palette swaps. A persistent
 health HUD, collapsible live map, brighter
 player-following cave light, smoothed routes, and post-look camera return keep
-the phone exploration view readable. Tap the 3D ground to walk, drag to look,
-and use the bottom dock or in-world Greyfen service labels for the migrated
-town systems.
+the phone exploration view readable. Greyfen now supports a living-town layer:
+named residents follow home/work/social schedules, gather and talk during the
+day, offer mission-aware conversations through a nearby Talk prompt, and move
+through a tighter town dressed with lamps, benches, stalls, carts, and fences.
+Major location missions introduce themselves with short skippable camera views
+of their actual destination and an immediate Route action. Tap the 3D ground to
+walk, drag to look, and use the bottom dock or in-world Greyfen service labels
+for the migrated town systems.
 
 ## Local checks
 
@@ -42,6 +47,8 @@ node --check cave-services.js
 node --check cave-visuals.js
 node --check navigation-utils.js
 node --check journey-services.js
+node --check town-simulation.js
+node --check mission-briefings.js
 ```
 
 See `MIGRATION_PLAN.md` for the audited system mapping and remaining migration

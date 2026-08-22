@@ -81,6 +81,13 @@ test('normalization migrates armor gear while retaining combat and exploration d
   assert.equal(normalized.forgeAnim, null);
 });
 
+test('mission briefing history is save compatible and sanitized', () => {
+  const fresh = createFreshState();
+  assert.deepEqual(fresh.journey.briefings, []);
+  const normalized = normalizeSave({ journey: { briefings: ['find-mine', 4, null, 'visit-frostmere'] } });
+  assert.deepEqual(normalized.journey.briefings, ['find-mine', 'visit-frostmere']);
+});
+
 test('owned legacy Iron gear receives the new expedition stat floor', () => {
   const normalized = normalizeSave({
     gear: [
