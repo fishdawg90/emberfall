@@ -118,8 +118,8 @@ try{
   EmberDebug.log('BOOT','GLTFLoader loaded',typeof GLTFLoader);
   window.THREE=Object.assign({},THREE_NS,{GLTFLoader});
   document.getElementById('loadingText').textContent='3D engine ready · loading town…';
-  EmberDebug.log('BOOT','starting game.js v20');
-  await import('./game.js?v=20');
+  EmberDebug.log('BOOT','starting game.js v21');
+  await import('./game.js?v=21');
   EmberDebug.log('BOOT','game.js module executed');
 }catch(e){
   console.error('Bootstrap failed',e);

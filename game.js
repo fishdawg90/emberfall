@@ -30,6 +30,9 @@ addEventListener('error',e=>fail(e.error||e.message));addEventListener('unhandle
 const saveBridge=loadGameState();
 let gameState=saveBridge.state,saveSummary=getSaveSummary(gameState);
 const serviceMeshes=new Map(),serviceButtons=new Map(),serviceDecorationLevels=new Map(),landmarkMeshes=new Map(),landmarkButtons=new Map();let serviceLots=[],landmarkLots=[],pendingService=null,pendingLandmark=null,pendingCaveAction=null,navigationEnd=null,navigationBlocks=0;
+// UI construction can immediately commit simulated offline work. Keep the
+// state read by those commit/render callbacks initialized before createGameUI.
+let caveWorld,style='realistic';
 window.EmberfallState=gameState;
 window.EmberfallSave={...saveBridge,summary:saveSummary};
 function commitGameState(action){const saved=saveGameState(gameState);gameState=saved.state;saveBridge.state=gameState;saveSummary=getSaveSummary(gameState);window.EmberfallState=gameState;window.EmberfallSave={...saveBridge,state:gameState,summary:saveSummary,lastAction:action,saveErrors:saved.errors};syncTownServices(action);updatePlayerHealth();EmberDebug.log('SAVE',action,saved.written,saveSummary,saved.errors);return saved}
@@ -40,7 +43,7 @@ const gameUI=createGameUI({getState:()=>gameState,commit:commitGameState,onJourn
 window.EmberfallUI=gameUI;
 const MOBILE_PROFILE=matchMedia('(pointer:coarse)').matches||innerWidth<720,renderer=new THREE.WebGLRenderer({canvas,antialias:!MOBILE_PROFILE||devicePixelRatio<1.8,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,MOBILE_PROFILE?1.25:1.65));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.08;renderer.outputColorSpace=THREE.SRGBColorSpace;
 const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(62,1,.08,900),ray=new THREE.Raycaster(),mouse=new THREE.Vector2();scene.fog=new THREE.Fog(0xb8c7c3,110,520);
-let hemi,sun,fill,terrain,grassShader,targetRing,townLife,skyLife,caveWorld,roads=[],roadSamples=[],lots=[],flatten=[],colliders=[],assets={},nav=[],navI=0,last=performance.now(),lastMiniMap=0,lastNpcSpeech=0,yaw=0,pitch=-.04,routeHeadingReturn=0,style='realistic',distanceSinceSave=0,positionDirty=false,wasCombatActive=Boolean(gameState.explore?.combat),nearbyResident=null,missionTour=null,lastObjectiveId='',nextBriefingAt=0;
+let hemi,sun,fill,terrain,grassShader,targetRing,townLife,skyLife,roads=[],roadSamples=[],lots=[],flatten=[],colliders=[],assets={},nav=[],navI=0,last=performance.now(),lastMiniMap=0,lastNpcSpeech=0,yaw=0,pitch=-.04,routeHeadingReturn=0,distanceSinceSave=0,positionDirty=false,wasCombatActive=Boolean(gameState.explore?.combat),nearbyResident=null,missionTour=null,lastObjectiveId='',nextBriefingAt=0;
 const initialCaveView=getCaveRunView(gameState),initialCaveCell=caveCellToWorld(initialCaveView.layout,initialCaveView.run.cell),savedPosition=readHostedWorldPosition(gameState.explore),initialCavePosition=initialCaveView.run.active?(initialCaveView.run.position||[initialCaveCell.x,initialCaveCell.z]):null,player={x:initialCavePosition?.[0]??savedPosition.x,z:initialCavePosition?.[1]??savedPosition.z,y:2},SEED=48731,WORLD=350;
 function clamp(v,a,b){return Math.max(a,Math.min(b,v))}function lerp(a,b,t){return a+(b-a)*t}function smooth(a,b,x){x=clamp((x-a)/(b-a),0,1);return x*x*(3-2*x)}
 function rngMaker(seed){return()=>{let t=seed+=0x6D2B79F5;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}}let rnd0=rngMaker(SEED);const rnd=(a,b)=>a+rnd0()*(b-a),pick=a=>a[(rnd0()*a.length)|0];

@@ -29,10 +29,17 @@ test('hosted shell retains mobile navigation, camera direction, assets, roads, a
 test('migrated gameplay dock is loaded without replacing the Three.js runtime', () => {
   assert.match(html, /class="gameDock"/);
   assert.match(html, /id="gamePanel"/);
-  assert.match(html, /game\.js\?v=20/);
+  assert.match(html, /game\.js\?v=21/);
   assert.match(game, /createGameUI/);
   assert.match(game, /new THREE\.WebGLRenderer/);
   assert.match(game, /saveGameState/);
+});
+
+test('returning saves can commit offline production during UI construction', () => {
+  const initialized = game.indexOf("let caveWorld,style='realistic'");
+  const uiConstruction = game.indexOf('const gameUI=createGameUI');
+  assert.ok(initialized >= 0);
+  assert.ok(initialized < uiConstruction, 'state used by save callbacks must initialize before the UI');
 });
 
 test('five persistent premade Greyfen services route walking into migrated systems', () => {
